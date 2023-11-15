@@ -14,7 +14,8 @@ void compute () {
 
 	// defines space for 2D vector of vector3 pointers to hold acceleration effects
 	vector3* values = (vector3*) malloc(sizeof(vector3) * NUMENTITIES * NUMENTITIES);
-	// defines space for 
+	// Array of pointers. These pointers will point to sections in the above array of size NUMENTITIES that correspond to their respective entity.
+	// For example, accels[1] will point to the first NUMENTITIES of values, and accels[6] will point to the 6th block of NUMENTITIES in values.
 	vector3** accels = (vector3**) malloc(sizeof(vector3*) * NUMENTITIES);
 
 	for (i = 0; i < NUMENTITIES; i++) {
@@ -25,17 +26,19 @@ void compute () {
 	for (i = 0; i < NUMENTITIES; i++) {
 		for (j = 0; j < NUMENTITIES; j++) {
 			if (i == j) {
-				// If the vector is itself, it has no effect
+				// If the vector is itself, it has no acceleration effect
 				FILL_VECTOR(accels[i][j], 0, 0, 0); 
 
 			} else {
 
 				vector3 distance;
 
+				// Getting x, y, z distances between objects i and j
 				for (k = 0; k < 3; k++) {
 					distance[k] = hPos[i][k] - hPos[j][k];
 				}
 
+				
 				double magnitude_sq = distance[0] * distance[0] + distance[1] * distance[1] + distance[2] * distance[2];
 				double magnitude = sqrt(magnitude_sq);
 				double accelmag = -1 * GRAV_CONSTANT * mass[j] / magnitude_sq;
