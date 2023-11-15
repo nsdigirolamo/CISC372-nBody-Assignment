@@ -1,9 +1,34 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
 #include "vector.h"
 #include "config.h"
 
+__global__ void do_print_test () {
+	printf("Thread %d checking in from block %d!", blockIdx, threadIdx);
+}
+
+extern "C" // Required because nvcc treats .cu like .cpp code. This tells it to treat it like C code.
 void compute () {
+
+	/**
+	 * num_blocks
+	 * Can be int or dim3
+	 * int - the number of blocks arranged in a 1D array
+	 * dim3 - the number of blocks and their configuration in a grid 
+	 */
+	int num_blocks = 1;
+	// Same limitations as above. Maximum 1024.
+	int threads_per_block = 1;
+
+	// Do the cuda thing.
+	do_print_test<<<num_blocks, threads_per_block>>>();
+
+	// Wait for completion.
+	cudaError_t cudaerr = cudaDeviceSynchronize();
+    if (cudaerr != cudaSuccess)
+        printf("kernel launch failed with error \"%s\".\n",
+               cudaGetErrorString(cudaerr));
 
 	int i, j, k;
 
