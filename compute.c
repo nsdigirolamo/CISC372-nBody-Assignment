@@ -7,12 +7,14 @@
 //Parameters: None
 //Returns: None
 //Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
-void compute() {
+void compute () {
 
 	//make an acceleration matrix which is NUMENTITIES squared in size;
 	int i, j, k;
 
+	// defines space for 2D vector of vector3 pointers to hold acceleration effects
 	vector3* values = (vector3*) malloc(sizeof(vector3) * NUMENTITIES * NUMENTITIES);
+	// defines space for 
 	vector3** accels = (vector3**) malloc(sizeof(vector3*) * NUMENTITIES);
 
 	for (i = 0; i < NUMENTITIES; i++) {
@@ -23,8 +25,8 @@ void compute() {
 	for (i = 0; i < NUMENTITIES; i++) {
 		for (j = 0; j < NUMENTITIES; j++) {
 			if (i == j) {
-
-				FILL_VECTOR(accels[i][j], 0, 0, 0);
+				// If the vector is itself, it has no effect
+				FILL_VECTOR(accels[i][j], 0, 0, 0); 
 
 			} else {
 
@@ -54,8 +56,8 @@ void compute() {
 		vector3 accel_sum={0,0,0};
 
 		for (j = 0; j < NUMENTITIES; j++) {
-			for (k=0;k<3;k++) {
-				accel_sum[k]+=accels[i][j][k];
+			for (k = 0; k < 3; k++) {
+				accel_sum[k] += accels[i][j][k];
 			}
 		}
 
