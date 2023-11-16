@@ -5,7 +5,7 @@
 #include "config.h"
 
 __global__ void do_print_test () {
-	printf("Thread %d checking in from block %d!", blockIdx, threadIdx);
+	printf("Block (%d %d %d) checking in from thread (%d %d %d)\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z);
 }
 
 extern "C" // Required because nvcc treats .cu like .cpp code. This tells it to treat it like C code.
