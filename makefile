@@ -1,8 +1,8 @@
 # https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#examples
 
-FLAGS= -g
-LIBS= -lm
-ALWAYS_REBUILD=makefile
+FLAGS = -DDEBUG
+LIBS = -lm
+ALWAYS_REBUILD = makefile
 
 pnbody: pnbody.o pcompute.o
 	nvcc $(FLAGS) $^ -o $@ $(LIBS)
