@@ -6,14 +6,11 @@
 
 #define THREAD_MAXIMUM 1024
 
-#define BLOCKS_PER_ROW ceil((double)(NUMENTITIES) / (double)(THREAD_MAXIMUM))
-#define THREADS_PER_BLOCK THREAD_MAXIMUM < NUMENTITIES ? THREAD_MAXIMUM : NUMENTITIES
-
-__global__ void calculateAccelerations (vector3* hVel, vector3* hPos, double* mass, vector3* values, vector3** accels) {
+__global__ void calculateAccelerations (vector3* hVel, vector3* hPos, double* mass, vector3* values, vector3** accels, int threads_per_block) {
 
 	int row = blockIdx.x;
 
-	int first_col = THREADS_PER_BLOCK * blockIdx.y;
+	int first_col = threads_per_block * blockIdx.y;
 	int col = first_col + threadIdx.x;
 
 	if (NUMENTITIES <= col) {
@@ -60,18 +57,19 @@ void compute () {
 		accels[i] = &values[i * NUMENTITIES];
 	}
 
-	/**
-	dim3 blocks(NUMENTITIES, BLOCKS_PER_ROW);
-	dim3 threads(THREADS_PER_BLOCK);
+	int blocks_per_row = ceil((double)(NUMENTITIES) / (double)(THREAD_MAXIMUM));
+	int threads_per_block = THREAD_MAXIMUM < NUMENTITIES ? (THREAD_MAXIMUM / 3) : NUMENTITIES;
 
-	calculateAccelerations<<<blocks, threads>>>(hVel, hPos, mass, values, accels);
+	dim3 blocks(NUMENTITIES, blocks_per_row);
+	dim3 threads(threads_per_block);
+
+	calculateAccelerations<<<blocks, threads>>>(hVel, hPos, mass, values, accels, threads_per_block);
 
 	cudaError_t err = cudaGetLastError();
 	if (err != cudaSuccess) 
 		printf("Kernel Launch Failed with Error: %s\n", cudaGetErrorString(err));
 	
 	cudaDeviceSynchronize();
-	*/
 
 	for (i=0;i<NUMENTITIES;i++){
 		for (j=0;j<NUMENTITIES;j++){
@@ -88,6 +86,7 @@ void compute () {
 			}
 		}
 	}
+
 	//sum up the rows of our matrix to get effect on each entity, then update velocity and position.
 	for (i=0;i<NUMENTITIES;i++){
 		vector3 accel_sum={0,0,0};
