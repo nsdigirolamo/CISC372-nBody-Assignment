@@ -6,6 +6,34 @@
 
 #define THREAD_MAXIMUM 1024
 
+vector3 *phVel;
+vector3 *phPos;
+double *pmass;
+
+void initDeviceMemory (int numObjects) {
+	// hVel
+	cudaMalloc(&phVel, sizeof(vector3) * numObjects);
+	cudaMemcpy(phVel, hVel, sizeof(vector3) * numObjects, cudaMemcpyHostToDevice);
+	// hPos
+	cudaMalloc(&phPos, sizeof(vector3) * numObjects);
+	cudaMemcpy(phPos, hPos, sizeof(vector3) * numObjects, cudaMemcpyHostToDevice);
+	// mass
+	cudaMalloc(&pmass, sizeof(double) * numObjects);
+	cudaMemcpy(pmass, mass, sizeof(double) * numObjects, cudaMemcpyHostToDevice);
+}
+
+void freeDeviceMemory () {
+	cudaFree(phVel);
+	cudaFree(phPos);
+	cudaFree(pmass);
+}
+
+void transferMemoryFromDeviceToHost (int numObjects) {
+	cudaMemcpy(phVel, hVel, sizeof(vector3) * numObjects, cudaMemcpyDeviceToHost);
+	cudaMemcpy(phPos, hPos, sizeof(vector3) * numObjects, cudaMemcpyDeviceToHost);
+	cudaMemcpy(pmass, mass, sizeof(double) * numObjects, cudaMemcpyDeviceToHost);
+}
+
 __global__ void calculateAccelerations (vector3* hVel, vector3* hPos, double* mass, vector3* values, vector3** accels, int threads_per_block) {
 
 	int row = blockIdx.x;
@@ -63,7 +91,7 @@ void compute () {
 	dim3 blocks(NUMENTITIES, blocks_per_row);
 	dim3 threads(threads_per_block);
 
-	calculateAccelerations<<<blocks, threads>>>(hVel, hPos, mass, values, accels, threads_per_block);
+	calculateAccelerations<<<blocks, threads>>>(phVel, phPos, pmass, values, accels, threads_per_block);
 
 	cudaError_t err = cudaGetLastError();
 	if (err != cudaSuccess) 
