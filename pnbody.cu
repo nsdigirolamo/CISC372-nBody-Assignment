@@ -5,7 +5,7 @@
 #include "vector.h"
 #include "config.h"
 #include "planets.h"
-#include "compute.h"
+#include "pcompute.h"
 
 // represents the objects in the system.  Global variables
 vector3 *hVel, *d_hVel;
@@ -18,9 +18,9 @@ double *mass;
 //Side Effects: Allocates memory in the hVel, hPos, and mass global variables
 void initHostMemory(int numObjects)
 {
-	cudaMallocManaged(&hVel, sizeof(vector3) * numObjects);
-	cudaMallocManaged(&hPos, sizeof(vector3) * numObjects);
-	cudaMallocManaged(&mass, sizeof(double) * numObjects);
+	hVel = (vector3 *)malloc(sizeof(vector3) * numObjects);
+	hPos = (vector3 *)malloc(sizeof(vector3) * numObjects);
+	mass = (double *)malloc(sizeof(double) * numObjects);
 }
 
 //freeHostMemory: Free storage allocated by a previous call to initHostMemory
@@ -29,9 +29,9 @@ void initHostMemory(int numObjects)
 //Side Effects: Frees the memory allocated to global variables hVel, hPos, and mass.
 void freeHostMemory()
 {
-	cudaFree(hVel);
-	cudaFree(hPos);
-	cudaFree(mass);
+	free(hVel);
+	free(hPos);
+	free(mass);
 }
 
 //planetFill: Fill the first NUMPLANETS+1 entries of the entity arrays with an estimation
@@ -58,7 +58,7 @@ void planetFill(){
 //Side Effects: Fills count entries in our system starting at index start (0 based)
 void randomFill(int start, int count)
 {
-	int i, j = start;
+	int i, j, c = start;
 	for (i = start; i < start + count; i++)
 	{
 		for (j = 0; j < 3; j++)
@@ -96,6 +96,7 @@ int main(int argc, char **argv)
 	//srand(time(NULL));
 	srand(1234);
 	initHostMemory(NUMENTITIES);
+	initDeviceMemory(NUMENTITIES);
 	planetFill();
 	randomFill(NUMPLANETS + 1, NUMASTEROIDS);
 	//now we have a system.
@@ -105,6 +106,7 @@ int main(int argc, char **argv)
 	for (t_now=0;t_now<DURATION;t_now+=INTERVAL){
 		compute();
 	}
+	transferMemoryFromDeviceToHost(NUMENTITIES);
 	clock_t t1=clock()-t0;
 #ifdef DEBUG
 	printSystem(stdout);
@@ -112,4 +114,5 @@ int main(int argc, char **argv)
 	printf("This took a total time of %f seconds\n",(double)t1/CLOCKS_PER_SEC);
 
 	freeHostMemory();
+	freeDeviceMemory();
 }
