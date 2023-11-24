@@ -5,41 +5,43 @@
 #include "config.h"
 
 #define THREAD_MAXIMUM 1024
+#define VECTOR_MAXIMUM (THREAD_MAXIMUM / 3)
+#define WARP_SIZE 32
 
-__global__ void calculateAccelerations (vector3* hVel, vector3* hPos, double* mass, vector3* values, vector3** accels, int threads_per_block) {
+__global__ void fillAccels (
+		vector3* hVel, 
+		vector3* hPos, 
+		double* mass, 
+		vector3* values, 
+		vector3** accels, 
+		int vectors_per_block
+	) {
 
+	int vector_id = threadIdx.x;
+	int thread_id = threadIdx.y;
 	int row = blockIdx.x;
+	int col = (vectors_per_block * blockIdx.y) + vector_id;
 
-	int first_col = threads_per_block * blockIdx.y;
-	int col = first_col + threadIdx.x;
+	if (col < NUMENTITIES) {
+		if (row == col) { 
 
-	if (NUMENTITIES <= col) {
-		return;
-	}
+			FILL_VECTOR(accels[row][col], 0, 0, 0); 
 
-	if (row == col) { 
+		} else {
 
-		FILL_VECTOR(accels[row][col], 0, 0, 0); 
+			__shared__ vector3 distances[VECTOR_MAXIMUM];
 
-	} else {
+			distances[vector_id][thread_id] = hPos[row][thread_id] - hPos[col][thread_id];
 
-		vector3 distance;
+			__syncthreads();
 
-		for (int i = 0; i < 3; i++) {
-			distance[i] = hPos[row][i] - hPos[col][i];
+			double magnitude_sq = distances[vector_id][0] * distances[vector_id][0] + distances[vector_id][1] * distances[vector_id][1] + distances[vector_id][2] * distances[vector_id][2];
+			double magnitude = sqrt(magnitude_sq);
+			double accelmag = -1 * GRAV_CONSTANT * mass[col] / magnitude_sq;
+
+			accels[row][col][thread_id] = accelmag * distances[vector_id][thread_id] / magnitude;
+
 		}
-
-		double magnitude_sq = distance[0] * distance[0] + distance[1] * distance[1] + distance[2] * distance[2];
-		double magnitude = sqrt(magnitude_sq);
-		double accelmag = -1 * GRAV_CONSTANT * mass[col] / magnitude_sq;
-
-		FILL_VECTOR(
-			accels[row][col],
-			accelmag * distance[0] / magnitude,
-			accelmag * distance[1] / magnitude,
-			accelmag * distance[2] / magnitude
-		);
-
 	}
 }
 
@@ -58,12 +60,12 @@ void compute () {
 	}
 
 	int blocks_per_row = ceil((double)(NUMENTITIES) / (double)(THREAD_MAXIMUM));
-	int threads_per_block = THREAD_MAXIMUM < NUMENTITIES ? (THREAD_MAXIMUM / 3) : NUMENTITIES;
+	int vectors_per_block = VECTOR_MAXIMUM < NUMENTITIES ? VECTOR_MAXIMUM : NUMENTITIES;
 
 	dim3 blocks(NUMENTITIES, blocks_per_row);
-	dim3 threads(threads_per_block);
+	dim3 threads(vectors_per_block, 3);
 
-	calculateAccelerations<<<blocks, threads>>>(hVel, hPos, mass, values, accels, threads_per_block);
+	fillAccels<<<blocks, threads>>>(hVel, hPos, mass, values, accels, vectors_per_block);
 
 	cudaError_t err = cudaGetLastError();
 	if (err != cudaSuccess) 
