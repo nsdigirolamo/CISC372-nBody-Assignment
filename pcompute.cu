@@ -32,7 +32,17 @@ __global__ void calculateAccelerations (
 			distance[i] = hPos[row][i] - hPos[col][i];
 		}
 
-		double magnitude_sq = distance[0] * distance[0] + distance[1] * distance[1] + distance[2] * distance[2];
+		/**
+		 * Below's incredibly horrible line of code is brought to you by CUDA's implementation of fused multiply-add.
+		 * Fused multiply-add is supposed to be faster and more accurate than separate operations, but it causes
+		 * the math to differ from the CPU's math. So we need to do the below to disable it.
+		 * 
+		 * Here is where I found the solution to this: 
+		 * https://stackoverflow.com/questions/14406364/different-results-for-cuda-addition-on-host-and-on-gpu
+		 * And here is some more in-depth reading: 
+		 * https://docs.nvidia.com/cuda/floating-point/index.html
+		 */
+		double magnitude_sq = __dadd_rn(__dadd_rn(__dmul_rn(distance[0], distance[0]), __dmul_rn(distance[1], distance[1])), __dmul_rn(distance[2], distance[2]));
 		double magnitude = sqrt(magnitude_sq);
 		double accelmag = -1 * GRAV_CONSTANT * mass[col] / magnitude_sq;
 
