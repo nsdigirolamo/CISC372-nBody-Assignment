@@ -6,16 +6,19 @@
 
 #define THREAD_MAXIMUM 1024
 
-__global__ void calculateAccelerations (vector3* hVel, vector3* hPos, double* mass, vector3* values, vector3** accels, int threads_per_block) {
+__global__ void calculateAccelerations (
+		vector3* hVel, 
+		vector3* hPos, 
+		double* mass, 
+		vector3* values, 
+		vector3** accels, 
+		int threads_per_block
+	) {
 
 	int row = blockIdx.x;
+	int col = (threads_per_block * blockIdx.y) + threadIdx.x;
 
-	int first_col = threads_per_block * blockIdx.y;
-	int col = first_col + threadIdx.x;
-
-	if (NUMENTITIES <= col) {
-		return;
-	}
+	if (NUMENTITIES <= col) return; // right now, the row variable will never be greater than NUMENTITIES
 
 	if (row == col) { 
 
@@ -71,15 +74,12 @@ void compute () {
 	
 	cudaDeviceSynchronize();
 
-	//sum up the rows of our matrix to get effect on each entity, then update velocity and position.
 	for (i=0;i<NUMENTITIES;i++){
 		vector3 accel_sum={0,0,0};
 		for (j=0;j<NUMENTITIES;j++){
 			for (k=0;k<3;k++)
 				accel_sum[k]+=accels[i][j][k];
 		}
-		//compute the new velocity based on the acceleration and time interval
-		//compute the new position based on the velocity and time interval
 		for (k=0;k<3;k++){
 			hVel[i][k]+=accel_sum[k]*INTERVAL;
 			hPos[i][k]+=hVel[i][k]*INTERVAL;
