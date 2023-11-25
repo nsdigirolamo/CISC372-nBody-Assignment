@@ -5,32 +5,46 @@
 #include "config.h"
 
 #define THREAD_MAXIMUM 1024
+#define BLOCKS_PER_ROW (ceil((double)(NUMENTITIES) / (double)(THREAD_MAXIMUM)))
+#define ENTITIES_PER_BLOCK ((THREAD_MAXIMUM / 3) < NUMENTITIES ? (THREAD_MAXIMUM / 3) : NUMENTITIES)
+#define THREADS_PER_ENTITY 3
+#define THREADS_PER_BLOCK (ENTITIES_PER_BLOCK * THREADS_PER_ENTITY)
 
-__global__ void calculateAccelerations (
-		vector3* hVel, 
-		vector3* hPos, 
-		double* mass, 
-		vector3* values, 
-		vector3** accels, 
-		int threads_per_block
-	) {
+__device__ void calculateDistances (int entity_id, int thread_id, int row, int col, vector3* distances, vector3* hPos) {
 
-	int row = blockIdx.x;
-	int col = (threads_per_block * blockIdx.y) + threadIdx.x;
+	if (NUMENTITIES <= col) return;
 
-	if (NUMENTITIES <= col) return; // right now, the row variable will never be greater than NUMENTITIES
+	if (row == col) {
 
-	if (row == col) { 
-
-		FILL_VECTOR(accels[row][col], 0, 0, 0); 
+		distances[entity_id][thread_id] = 0;
 
 	} else {
 
-		vector3 distance;
+		distances[entity_id][thread_id] = hPos[row][thread_id] - hPos[col][thread_id];
 
-		for (int i = 0; i < 3; i++) {
-			distance[i] = hPos[row][i] - hPos[col][i];
-		}
+	}
+}
+
+__global__ void calculateAccelerations (vector3** accels, vector3* hPos, double* masses) {
+
+	int entity_id = threadIdx.x;
+	int thread_id = threadIdx.y;
+	int row = blockIdx.x;
+	int col = (ENTITIES_PER_BLOCK * blockIdx.y) + entity_id;
+
+	if (NUMENTITIES <= col) return;
+
+	if (row == col) {
+
+		accels[row][col][thread_id] = 0;
+
+	} else {
+
+		__shared__ vector3 distances[ENTITIES_PER_BLOCK];
+
+		calculateDistances(entity_id, thread_id, row, col, distances, hPos);
+
+		__syncthreads();
 
 		/**
 		 * Below's incredibly horrible line of code is brought to you by CUDA's implementation of fused multiply-add.
@@ -42,16 +56,10 @@ __global__ void calculateAccelerations (
 		 * And here is some more in-depth reading: 
 		 * https://docs.nvidia.com/cuda/floating-point/index.html
 		 */
-		double magnitude_sq = __dadd_rn(__dadd_rn(__dmul_rn(distance[0], distance[0]), __dmul_rn(distance[1], distance[1])), __dmul_rn(distance[2], distance[2]));
+		double magnitude_sq = __dadd_rn(__dadd_rn(__dmul_rn(distances[entity_id][0], distances[entity_id][0]), __dmul_rn(distances[entity_id][1], distances[entity_id][1])), __dmul_rn(distances[entity_id][2], distances[entity_id][2]));
 		double magnitude = sqrt(magnitude_sq);
-		double accelmag = -1 * GRAV_CONSTANT * mass[col] / magnitude_sq;
-
-		FILL_VECTOR(
-			accels[row][col],
-			accelmag * distance[0] / magnitude,
-			accelmag * distance[1] / magnitude,
-			accelmag * distance[2] / magnitude
-		);
+		double accelmag = -1 * GRAV_CONSTANT * masses[col] / magnitude_sq;
+		accels[row][col][thread_id] = accelmag * distances[entity_id][thread_id] / magnitude;
 
 	}
 }
@@ -60,28 +68,24 @@ void compute () {
 
 	int i, j, k;
 
-	vector3* values;
-	vector3** accels;
+	dim3 blocks(NUMENTITIES, BLOCKS_PER_ROW);
+	dim3 threads(ENTITIES_PER_BLOCK, THREADS_PER_ENTITY);
 
-	cudaMallocManaged(&values, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
+	vector3* accel_values;
+	cudaMallocManaged(&accel_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
+	vector3** accels;
 	cudaMallocManaged(&accels, sizeof(vector3*) * NUMENTITIES);
 
 	for (i = 0; i < NUMENTITIES; i++) {
-		accels[i] = &values[i * NUMENTITIES];
+		accels[i] = &accel_values[i * NUMENTITIES];
 	}
 
-	int blocks_per_row = ceil((double)(NUMENTITIES) / (double)(THREAD_MAXIMUM));
-	int threads_per_block = THREAD_MAXIMUM < NUMENTITIES ? (THREAD_MAXIMUM / 3) : NUMENTITIES;
-
-	dim3 blocks(NUMENTITIES, blocks_per_row);
-	dim3 threads(threads_per_block);
-
-	calculateAccelerations<<<blocks, threads>>>(hVel, hPos, mass, values, accels, threads_per_block);
-
-	cudaError_t err = cudaGetLastError();
-	if (err != cudaSuccess) 
-		printf("Kernel Launch Failed with Error: %s\n", cudaGetErrorString(err));
-	
+	calculateAccelerations<<<blocks, threads>>>(accels, hPos, mass);
+	cudaError_t calculate_accelerations_error = cudaGetLastError();
+	if (calculate_accelerations_error != cudaSuccess) 
+		printf("calculateAccelerations kernel launch failed with Error: %s\n",
+			cudaGetErrorString(calculate_accelerations_error)
+		);
 	cudaDeviceSynchronize();
 
 	for (i=0;i<NUMENTITIES;i++){
@@ -96,6 +100,6 @@ void compute () {
 		}
 	}
 
+	cudaFree(accel_values);
 	cudaFree(accels);
-	cudaFree(values);
 }
