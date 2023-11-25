@@ -39,6 +39,7 @@ __global__ void calculateAccelerations (vector3** accels, vector3* hPos, double*
 		 * 
 		 * And here is some more in-depth reading: 
 		 * https://docs.nvidia.com/cuda/floating-point/index.html
+		 * 
 		 */
 
 		double magnitude_sq = __dadd_rn(__dadd_rn(__dmul_rn(distance[0], distance[0]), __dmul_rn(distance[1], distance[1])), __dmul_rn(distance[2], distance[2]));
