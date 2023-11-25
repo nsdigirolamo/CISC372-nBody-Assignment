@@ -54,16 +54,16 @@ __global__ void calculateAccelerations (vector3** accels, vector3* hPos, double*
 	}
 }
 
-__global__ void sumAccelerations (vector3** accels, int iteration, int offset) {
+__global__ void sumAccelerations (vector3** accels, int iteration, int offset, vector3* accel_sums) {
 
 	int row = blockIdx.x;
 	int col = (THREADS_PER_BLOCK * blockIdx.y) + threadIdx.x;
 
-	bool col_past_length = NUMENTITIES <= col;
-	bool col_needs_adding = col % offset == 0;
-	bool offset_past_length = NUMENTITIES <= col + offset;
+	// bool col_past_length = NUMENTITIES <= col;
+	// bool col_needs_adding = col % offset == 0;
+	// bool offset_past_length = NUMENTITIES <= col + offset;
 
-	if (col_past_length || !col_needs_adding || offset_past_length) return;
+	// if (col_past_length || !col_needs_adding || offset_past_length) return;
 
 	/**
 	 * 
@@ -79,8 +79,25 @@ __global__ void sumAccelerations (vector3** accels, int iteration, int offset) {
 	 * next iteration!
 	 */
 
+	/**
+
 	for (int i = 0; i < 3; i++) {
 		accels[row][col][i] = __dadd_ru(accels[row][col][i], accels[row][col + offset][i]);
+	}
+
+	*/
+
+	if (col == 0) {
+
+		for (int i = 0; i < 3; i++) {
+			accel_sums[row][i] = 0;
+		}
+
+		for (int i = 0; i < NUMENTITIES; i++) {
+			for (int j = 0; j < 3; j++) {
+				accel_sums[row][j] += accels[row][i][j];
+			}
+		}
 	}
 }
 
@@ -109,9 +126,12 @@ void compute () {
 	int i = 0;
 	int offset = pow(2, i);
 
+	vector3* accel_sums;
+	cudaMallocManaged(&accel_sums, sizeof(vector3) * NUMENTITIES);
+
 	while (offset < NUMENTITIES) {
 
-		sumAccelerations<<<blocks, threads>>>(accels, i, offset);
+		sumAccelerations<<<blocks, threads>>>(accels, i, offset, accel_sums);
 		cudaError_t sum_accelerations_error = cudaGetLastError();
 		if (sum_accelerations_error != cudaSuccess) 
 			printf("sumAccelerations kernel launch failed with Error: %s\n",
@@ -125,7 +145,7 @@ void compute () {
 
 	for (int i = 0; i < NUMENTITIES; i++) {
 		for (int j = 0; j < 3; j++){
-			hVel[i][j] += accels[i][0][j] * INTERVAL;
+			hVel[i][j] += accel_sums[i][j] * INTERVAL;
 			hPos[i][j] += hVel[i][j] * INTERVAL;
 		}
 	}
