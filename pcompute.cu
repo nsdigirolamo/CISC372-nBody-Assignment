@@ -5,24 +5,19 @@
 #include "config.h"
 
 #define THREAD_MAXIMUM 1024
+#define BLOCKS_PER_ROW (ceil((double)(NUMENTITIES) / (double)(THREAD_MAXIMUM)))
+#define THREADS_PER_BLOCK (THREAD_MAXIMUM < NUMENTITIES ? THREAD_MAXIMUM : NUMENTITIES)
 
-__global__ void calculateAccelerations (
-		vector3* hVel, 
-		vector3* hPos, 
-		double* mass, 
-		vector3* values, 
-		vector3** accels, 
-		int threads_per_block
-	) {
+__global__ void calculateAccelerations (vector3** accels, vector3* hPos, double* masses) {
 
 	int row = blockIdx.x;
-	int col = (threads_per_block * blockIdx.y) + threadIdx.x;
+	int col = (THREADS_PER_BLOCK * blockIdx.y) + threadIdx.x;
 
-	if (NUMENTITIES <= col) return; // right now, the row variable will never be greater than NUMENTITIES
+	if (NUMENTITIES <= col) return;
 
-	if (row == col) { 
+	if (row == col) {
 
-		FILL_VECTOR(accels[row][col], 0, 0, 0); 
+		FILL_VECTOR(accels[row][col], 0, 0, 0);
 
 	} else {
 
@@ -44,7 +39,7 @@ __global__ void calculateAccelerations (
 		 */
 		double magnitude_sq = __dadd_rn(__dadd_rn(__dmul_rn(distance[0], distance[0]), __dmul_rn(distance[1], distance[1])), __dmul_rn(distance[2], distance[2]));
 		double magnitude = sqrt(magnitude_sq);
-		double accelmag = -1 * GRAV_CONSTANT * mass[col] / magnitude_sq;
+		double accelmag = -1 * GRAV_CONSTANT * masses[col] / magnitude_sq;
 
 		FILL_VECTOR(
 			accels[row][col],
@@ -52,7 +47,6 @@ __global__ void calculateAccelerations (
 			accelmag * distance[1] / magnitude,
 			accelmag * distance[2] / magnitude
 		);
-
 	}
 }
 
@@ -60,28 +54,24 @@ void compute () {
 
 	int i, j, k;
 
-	vector3* values;
-	vector3** accels;
+	dim3 blocks(NUMENTITIES, BLOCKS_PER_ROW);
+	dim3 threads(THREADS_PER_BLOCK);
 
-	cudaMallocManaged(&values, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
+	vector3* accel_values;
+	cudaMallocManaged(&accel_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
+	vector3** accels;
 	cudaMallocManaged(&accels, sizeof(vector3*) * NUMENTITIES);
 
 	for (i = 0; i < NUMENTITIES; i++) {
-		accels[i] = &values[i * NUMENTITIES];
+		accels[i] = &accel_values[i * NUMENTITIES];
 	}
 
-	int blocks_per_row = ceil((double)(NUMENTITIES) / (double)(THREAD_MAXIMUM));
-	int threads_per_block = THREAD_MAXIMUM < NUMENTITIES ? (THREAD_MAXIMUM / 3) : NUMENTITIES;
-
-	dim3 blocks(NUMENTITIES, blocks_per_row);
-	dim3 threads(threads_per_block);
-
-	calculateAccelerations<<<blocks, threads>>>(hVel, hPos, mass, values, accels, threads_per_block);
-
-	cudaError_t err = cudaGetLastError();
-	if (err != cudaSuccess) 
-		printf("Kernel Launch Failed with Error: %s\n", cudaGetErrorString(err));
-	
+	calculateAccelerations<<<blocks, threads>>>(accels, hPos, mass);
+	cudaError_t calculate_accelerations_error = cudaGetLastError();
+	if (calculate_accelerations_error != cudaSuccess) 
+		printf("calculateAccelerations kernel launch failed with Error: %s\n",
+			cudaGetErrorString(calculate_accelerations_error)
+		);
 	cudaDeviceSynchronize();
 
 	for (i=0;i<NUMENTITIES;i++){
@@ -96,6 +86,6 @@ void compute () {
 		}
 	}
 
+	cudaFree(accel_values);
 	cudaFree(accels);
-	cudaFree(values);
 }
