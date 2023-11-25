@@ -27,13 +27,12 @@ __global__ void calculateAccelerations (vector3** accels, vector3* hPos, double*
 			distance[i] = hPos[row][i] - hPos[col][i];
 		}
 
+		#ifdef STRICT_CALC_ACCELS
+
 		/**
 		 * Below's line of code is brought to you by CUDA's fused multiply-add. Fused multiply-add is faster and 
 		 * more accurate than separate operations, but it causes the math to differ from the CPU's math. 
 		 * So we need to do the below to disable it.
-		 * 
-		 * Original Implentation:
-		 * double magnitude_sq = distance[0] * distance[0] + distance[1] * distance[1] + distance[2] * distance[2]
 		 * 
 		 * Here is where I found the solution to this: 
 		 * https://stackoverflow.com/questions/14406364/different-results-for-cuda-addition-on-host-and-on-gpu
@@ -41,7 +40,15 @@ __global__ void calculateAccelerations (vector3** accels, vector3* hPos, double*
 		 * And here is some more in-depth reading: 
 		 * https://docs.nvidia.com/cuda/floating-point/index.html
 		 */
+
 		double magnitude_sq = __dadd_rn(__dadd_rn(__dmul_rn(distance[0], distance[0]), __dmul_rn(distance[1], distance[1])), __dmul_rn(distance[2], distance[2]));
+
+		#else
+
+		double magnitude_sq = distance[0] * distance[0] + distance[1] * distance[1] + distance[2] * distance[2];
+
+		#endif
+
 		double magnitude = sqrt(magnitude_sq);
 		double accelmag = -1 * GRAV_CONSTANT * masses[col] / magnitude_sq;
 
@@ -59,46 +66,33 @@ __global__ void sumAccelerations (vector3** accels, int iteration, int offset, v
 	int row = blockIdx.x;
 	int col = (THREADS_PER_BLOCK * blockIdx.y) + threadIdx.x;
 
-	// bool col_past_length = NUMENTITIES <= col;
-	// bool col_needs_adding = col % offset == 0;
-	// bool offset_past_length = NUMENTITIES <= col + offset;
+	#ifdef STRICT_SUM_ACCELS
 
-	// if (col_past_length || !col_needs_adding || offset_past_length) return;
-
-	/**
-	 * 
-	 * TODO: Optimize the below for loop!
-	 * 
-	 * Below causes some threads to do work when they really don't need to be doing work.
-	 * For example, iteration 0 will check to see if col % (2^0) == 0. This is true for
-	 * all numbers, so all threads will be adding with their offset neighbors. But in the
-	 * next iteration, only columns with col % (2^1) == 0 are needed (the even columns).
-	 * So all the odd columns in iteration 0 are doing work for no reason. This issue applies
-	 * to every iteration... in fact, all iterations are technically doing two times as much
-	 * "work" as they need to be, because every other thread's work will be ignored in the
-	 * next iteration!
-	 */
-
-	/**
+	if (col != 0) return;
 
 	for (int i = 0; i < 3; i++) {
-		accels[row][col][i] = __dadd_ru(accels[row][col][i], accels[row][col + offset][i]);
+		accel_sums[row][i] = 0;
 	}
 
-	*/
-
-	if (col == 0) {
-
-		for (int i = 0; i < 3; i++) {
-			accel_sums[row][i] = 0;
-		}
-
-		for (int i = 0; i < NUMENTITIES; i++) {
-			for (int j = 0; j < 3; j++) {
-				accel_sums[row][j] += accels[row][i][j];
-			}
+	for (int i = 0; i < NUMENTITIES; i++) {
+		for (int j = 0; j < 3; j++) {
+			accel_sums[row][j] += accels[row][i][j];
 		}
 	}
+
+	#else
+
+	bool col_past_length = NUMENTITIES <= col;
+	bool col_needs_adding = col % offset == 0;
+	bool offset_past_length = NUMENTITIES <= col + offset;
+
+	if (col_past_length || !col_needs_adding || offset_past_length) return;
+
+	for (int i = 0; i < 3; i++) {
+		accels[row][col][i] = accels[row][col][i] + accels[row][col + offset][i];
+	}
+
+	#endif
 }
 
 void compute () {
