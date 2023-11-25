@@ -28,9 +28,9 @@ __global__ void calculateAccelerations (vector3** accels, vector3* hPos, double*
 		}
 
 		/**
-		 * Below's incredibly horrible line of code is brought to you by CUDA's implementation of fused multiply-add.
-		 * Fused multiply-add is supposed to be faster and more accurate than separate operations, but it causes
-		 * the math to differ from the CPU's math. So we need to do the below to disable it.
+		 * Below's line of code is brought to you by CUDA's fused multiply-add. Fused multiply-add is faster and 
+		 * more accurate than separate operations, but it causes the math to differ from the CPU's math. 
+		 * So we need to do the below to disable it.
 		 * 
 		 * Here is where I found the solution to this: 
 		 * https://stackoverflow.com/questions/14406364/different-results-for-cuda-addition-on-host-and-on-gpu
