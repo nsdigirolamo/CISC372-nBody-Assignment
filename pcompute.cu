@@ -32,7 +32,8 @@ __global__ void calculateAccelerations (vector3** accels, vector3* hPos, double*
 		/**
 		 * Below's line of code is brought to you by CUDA's fused multiply-add. Fused multiply-add is faster and 
 		 * more accurate than separate operations, but it causes the math to differ from the CPU's math. 
-		 * So we need to do the below to disable it.
+		 * So we need to do the below to disable it. Also it doesn't seem like fused multiple-add is *that* much
+		 * faster than doing it the regular way, so we should be fine keeping it like below.
 		 * 
 		 * Here is where I found the solution to this: 
 		 * https://stackoverflow.com/questions/14406364/different-results-for-cuda-addition-on-host-and-on-gpu
@@ -62,12 +63,10 @@ __global__ void calculateAccelerations (vector3** accels, vector3* hPos, double*
 	}
 }
 
-__global__ void sumAccelerations (vector3** accels, int iteration, int offset, vector3* accel_sums) {
+__global__ void sumAccelerations (vector3** accels, vector3* accel_sums) {
 
 	int row = blockIdx.x;
 	int col = (THREADS_PER_BLOCK * blockIdx.y) + threadIdx.x;
-
-	#ifdef STRICT_SUM_ACCELS
 
 	if (col != 0) return;
 
@@ -80,26 +79,14 @@ __global__ void sumAccelerations (vector3** accels, int iteration, int offset, v
 			accel_sums[row][j] += accels[row][i][j];
 		}
 	}
-
-	#else
-
-	bool col_past_length = NUMENTITIES <= col;
-	bool col_needs_adding = col % offset == 0;
-	bool offset_past_length = NUMENTITIES <= col + offset;
-
-	if (col_past_length || !col_needs_adding || offset_past_length) return;
-
-	for (int i = 0; i < 3; i++) {
-		accels[row][col][i] = accels[row][col][i] + accels[row][col + offset][i];
-	}
-
-	#endif
 }
 
 void compute () {
 
 	dim3 blocks (NUMENTITIES, BLOCKS_PER_ROW);
 	dim3 threads (THREADS_PER_BLOCK);
+
+	// Calculate Accelerations Starts Here
 
 	vector3* accel_values;
 	cudaMallocManaged(&accel_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
@@ -118,25 +105,20 @@ void compute () {
 		);
 	cudaDeviceSynchronize();
 
-	int i = 0;
-	int offset = pow(2, i);
+	// Summing Accelerations Starts Here
 
 	vector3* accel_sums;
 	cudaMallocManaged(&accel_sums, sizeof(vector3) * NUMENTITIES);
 
-	while (offset < NUMENTITIES) {
+	sumAccelerations<<<blocks, threads>>>(accels, accel_sums);
+	cudaError_t sum_accelerations_error = cudaGetLastError();
+	if (sum_accelerations_error != cudaSuccess) 
+		printf("sumAccelerations kernel launch failed with Error: %s\n",
+			cudaGetErrorString(sum_accelerations_error)
+		);
+	cudaDeviceSynchronize();
 
-		sumAccelerations<<<blocks, threads>>>(accels, i, offset, accel_sums);
-		cudaError_t sum_accelerations_error = cudaGetLastError();
-		if (sum_accelerations_error != cudaSuccess) 
-			printf("sumAccelerations kernel launch failed with Error: %s\n",
-				cudaGetErrorString(sum_accelerations_error)
-			);
-		cudaDeviceSynchronize();
-
-		i++;
-		offset = pow(2, i);
-	}
+	// Calculating Changes Starts Here
 
 	for (int i = 0; i < NUMENTITIES; i++) {
 		for (int j = 0; j < 3; j++){
