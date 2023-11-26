@@ -69,13 +69,13 @@ __global__ void sumAccels (vector3** accels, vector3* accel_sums) {
 
 	if (col != 0) return;
 
-	accel_sums[row][axis] = 0;
+	double accel_sum = 0;
 
 	for (int i = 0; i < NUMENTITIES; i++) {
-
-		accel_sums[row][axis] += accels[row][i][axis];
-
+		accel_sum += accels[row][i][axis];
 	}
+
+	accel_sums[row][axis] = accel_sum;
 }
 
 __global__ void calcChanges (vector3* accel_sums, vector3* velocities, vector3* positions) {
