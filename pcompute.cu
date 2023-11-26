@@ -63,21 +63,23 @@ __global__ void calculateAccelerations (vector3** accels, vector3* hPos, double*
 	}
 }
 
-__global__ void sumAccelerations (vector3** accels, vector3* accel_sums) {
+__global__ void sumAccelerations (vector3** accels, vector3* hVel, vector3* hPos) {
 
 	int row = blockIdx.x;
 	int col = (THREADS_PER_BLOCK * blockIdx.y) + threadIdx.x;
 
 	if (col != 0) return;
 
-	for (int i = 0; i < 3; i++) {
-		accel_sums[row][i] = 0;
-	}
+	vector3 accel_sum = {0, 0, 0};
 
 	for (int i = 0; i < NUMENTITIES; i++) {
 		for (int j = 0; j < 3; j++) {
-			accel_sums[row][j] += accels[row][i][j];
+			accel_sum[j] += accels[row][i][j];
 		}
+	}
+
+	for (int i = 0; i < 3; i++) {
+		accels[row][0][i] = accel_sum[i];
 	}
 }
 
@@ -107,10 +109,7 @@ void compute () {
 
 	// Summing Accelerations Starts Here
 
-	vector3* accel_sums;
-	cudaMallocManaged(&accel_sums, sizeof(vector3) * NUMENTITIES);
-
-	sumAccelerations<<<blocks, threads>>>(accels, accel_sums);
+	sumAccelerations<<<blocks, threads>>>(accels, hVel, hPos);
 	cudaError_t sum_accelerations_error = cudaGetLastError();
 	if (sum_accelerations_error != cudaSuccess) 
 		printf("sumAccelerations kernel launch failed with Error: %s\n",
@@ -122,7 +121,7 @@ void compute () {
 
 	for (int i = 0; i < NUMENTITIES; i++) {
 		for (int j = 0; j < 3; j++){
-			hVel[i][j] += accel_sums[i][j] * INTERVAL;
+			hVel[i][j] += accels[i][0][j] * INTERVAL;
 			hPos[i][j] += hVel[i][j] * INTERVAL;
 		}
 	}
