@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include "pvector.h"
+#include "vector.h"
 #include "config.h"
 
 #define THREAD_MAXIMUM 1024
