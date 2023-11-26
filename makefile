@@ -1,12 +1,12 @@
-FLAGS = -DSTRICT_CALC_ACCELS -DDEBUG 
+FLAGS = -DSTRICT_ACCELS -DDEBUG
 LIBS = -lm
 ALWAYS_REBUILD = makefile
 
 pnbody: pnbody.o pcompute.o
 	nvcc $(FLAGS) $^ -o $@ $(LIBS)
-pnbody.o: pnbody.cu planets.h config.h vector.h $(ALWAYS_REBUILD)
+pnbody.o: pnbody.cu planets.h config.h pvector.h $(ALWAYS_REBUILD)
 	nvcc $(FLAGS) -c $< 
-pcompute.o: pcompute.cu config.h vector.h $(ALWAYS_REBUILD)
+pcompute.o: pcompute.cu config.h pvector.h $(ALWAYS_REBUILD)
 	nvcc $(FLAGS) -c $<
 
 nbody: nbody.o compute.o
