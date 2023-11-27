@@ -4,16 +4,12 @@
 #include "vector.h"
 #include "config.h"
 
-#define THREAD_MAXIMUM 1024
-#define BLOCKS_PER_ROW (ceil((double)(NUMENTITIES) / (double)(THREAD_MAXIMUM)))
-#define THREADS_PER_BLOCK (THREAD_MAXIMUM < NUMENTITIES ? THREAD_MAXIMUM : NUMENTITIES)
 #define SPATIAL_AXES 3
-
 
 __global__ void calcDists (vector3** dists, vector3* positions, double* masses) {
 
 	int row = blockIdx.x;
-	int col = (THREADS_PER_BLOCK * blockIdx.y) + threadIdx.x;
+	int col = (blockDim.x * blockIdx.y) + threadIdx.x;
 	int axis = blockIdx.z;
 
 	if (NUMENTITIES <= col) return;
@@ -33,7 +29,7 @@ __global__ void calcDists (vector3** dists, vector3* positions, double* masses) 
 __global__ void calcAccels (vector3** accels, vector3** dists, double* masses) {
 
 	int row = blockIdx.x;
-	int col = (THREADS_PER_BLOCK * blockIdx.y) + threadIdx.x;
+	int col = (blockDim.x * blockIdx.y) + threadIdx.x;
 	int axis = blockIdx.z;
 
 	if (NUMENTITIES <= col) return;
@@ -64,7 +60,7 @@ __global__ void calcAccels (vector3** accels, vector3** dists, double* masses) {
 __global__ void sumAccels (vector3** accels, vector3* accel_sums) {
 
 	int row = blockIdx.x;
-	int col = (THREADS_PER_BLOCK * blockIdx.y) + threadIdx.x;
+	int col = (blockDim.x * blockIdx.y) + threadIdx.x;
 	int axis = blockIdx.z;
 
 	if (col != 0) return;
@@ -81,7 +77,7 @@ __global__ void sumAccels (vector3** accels, vector3* accel_sums) {
 __global__ void calcChanges (vector3* accel_sums, vector3* velocities, vector3* positions) {
 
 	int row = blockIdx.x;
-	int col = (THREADS_PER_BLOCK * blockIdx.y) + threadIdx.x;
+	int col = (blockDim.x * blockIdx.y) + threadIdx.x;
 	int axis = blockIdx.z;
 
 	if (col != 0) return;
@@ -92,8 +88,8 @@ __global__ void calcChanges (vector3* accel_sums, vector3* velocities, vector3* 
 
 void compute () {
 
-	dim3 blocks (NUMENTITIES, BLOCKS_PER_ROW, SPATIAL_AXES);
-	dim3 threads (THREADS_PER_BLOCK);
+	dim3 blocks(NUMENTITIES, blocks_per_row, SPATIAL_AXES);
+	dim3 threads(threads_per_block);
 
 	#ifdef DEBUG
 	cudaError_t e = cudaGetLastError();
