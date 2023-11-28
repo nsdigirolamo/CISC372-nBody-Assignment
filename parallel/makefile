@@ -1,6 +1,9 @@
-FLAGS =
+FLAGS = -DDEBUG
 LIBS = -lm
 ALWAYS_REBUILD = makefile
+
+run: nbody
+	srun ./nbody > out.txt
 
 nbody: nbody.o compute.o
 	nvcc $(FLAGS) $^ -o $@ $(LIBS)
