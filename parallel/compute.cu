@@ -6,27 +6,7 @@
 
 #define SPATIAL_AXES 3
 
-__global__ void calcDists (vector3** dists, vector3* positions, double* masses) {
-
-	int row = blockIdx.x;
-	int col = (blockDim.x * blockIdx.y) + threadIdx.x;
-	int axis = blockIdx.z;
-
-	if (NUMENTITIES <= col) return;
-
-	if (row == col) {
-
-		dists[row][col][axis] = 0;
-
-	} else {
-
-		dists[row][col][axis] = positions[row][axis] - positions[col][axis];
-
-	}
-}
-
-
-__global__ void calcAccels (vector3** accels, vector3** dists, double* masses) {
+__global__ void calcAccels (vector3** accels, vector3* positions, double* masses) {
 
 	int row = blockIdx.x;
 	int col = (blockDim.x * blockIdx.y) + threadIdx.x;
@@ -40,19 +20,16 @@ __global__ void calcAccels (vector3** accels, vector3** dists, double* masses) {
 
 	} else {
 
-		#ifdef STRICT_ACCELS
+		vector3 distance = {0, 0, 0};
 
-		double magnitude_sq = __dadd_rn(__dadd_rn(__dmul_rn(dists[row][col][0], dists[row][col][0]), __dmul_rn(dists[row][col][1], dists[row][col][1])), __dmul_rn(dists[row][col][2], dists[row][col][2]));
+		for (int i = 0; i < 3; i++) {
+			distance[i] = positions[row][i] - positions[col][i];
+		}
 
-		#else
-
-		double magnitude_sq = dists[row][col][0] * dists[row][col][0] + dists[row][col][1] * dists[row][col][1] + dists[row][col][2] * dists[row][col][2];
-
-		#endif
-
+		double magnitude_sq = distance[0] * distance[0] + distance[1] * distance[1] + distance[2] * distance[2];
 		double magnitude = sqrt(magnitude_sq);
 		double accelmag = -1 * GRAV_CONSTANT * masses[col] / magnitude_sq;
-		accels[row][col][axis] = accelmag * dists[row][col][axis] / magnitude;
+		accels[row][col][axis] = accelmag * distance[axis] / magnitude;
 
 	}
 }
@@ -100,20 +77,8 @@ void compute () {
 		);
 	#endif
 
-	// Calculate Distances
-	calcDists<<<blocks, threads>>>(dists, device_positions, device_masses);
-	#ifdef DEBUG
-	cudaError_t calc_dists_error = cudaGetLastError();
-	if (calc_dists_error != cudaSuccess)
-		printf("calcDists kernel launch failed! %s: %s\n",
-			cudaGetErrorName(calc_dists_error),
-			cudaGetErrorString(calc_dists_error)
-		);
-	#endif
-	cudaDeviceSynchronize();
-
 	// Calculate Accelerations
-	calcAccels<<<blocks, threads>>>(accels, dists, device_masses);
+	calcAccels<<<blocks, threads>>>(accels, device_positions, device_masses);
 	#ifdef DEBUG
 	cudaError_t calc_accels_error = cudaGetLastError();
 	if (calc_accels_error != cudaSuccess) 
