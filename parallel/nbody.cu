@@ -11,20 +11,11 @@ vector3* host_velocities;
 vector3* host_positions;
 double* host_masses;
 
-int threads_per_row;
-int warps_per_row;
-int blocks_per_row;
-
-int threads_per_block;
-int warps_per_block;
-
 vector3* device_velocities;
 vector3* device_positions;
 double* device_masses;
 
-vector3** dists;
 vector3** accels;
-vector3* accel_sums;
 
 void initHostMemory (int numObjects) {
 
@@ -34,71 +25,6 @@ void initHostMemory (int numObjects) {
 
 }
 
-void initKernelParameters () {
-
-	// Setting initial values for warps_per_row and threads_per_row
-
-	warps_per_row = ceil((double)(NUMENTITIES) / (double)(THREADS_PER_WARP));
-
-	// Now we have to evenly distibute our blocks across the rows.
-
-	bool warps_exceed_max = MAX_WARPS_PER_BLOCK < warps_per_row;
-	int leftover_warps = warps_per_row % MAX_WARPS_PER_BLOCK;
-
-	if (!warps_exceed_max) {
-
-		/**
-		 * If we don't exceed the maximum number of warps, we have one block per row and
-		 * warps_per_block and warps_per_row are equal.
-		 */
-
-		blocks_per_row = 1;
-		warps_per_block = warps_per_row;
-
-	} else if (leftover_warps == 0) {
-
-		/**
-		 * If we have more warps per row than our maximum but there are no leftover warps,
-		 * that means that warps_per_block is the maximum and blocks_per_row can be found
-		 * by simply dividing. 
-		 */
-
-		blocks_per_row = warps_per_row / MAX_WARPS_PER_BLOCK;
-		warps_per_block = MAX_WARPS_PER_BLOCK;
-
-	} else {
-
-		/**
-		 * If we're here, that means we have more warps_per_row than we can hold in a single
-		 * block, but also our warps_per_row doesn't divide equally, so we have leftover warps
-		 * that have no block to live in. So we need to create a new block and then evenly
-		 * distribute our warps into our new number of blocks. 
-		 */
-
-		// This will give us one more block so we have room for our leftover warps
-		blocks_per_row = ceil((double)(warps_per_row) / (double)(MAX_WARPS_PER_BLOCK));
-		// This will give us the number of blocks per warp required to cover all our warps
-		warps_per_block = ceil((double)(warps_per_row) / (double)(blocks_per_row));
-		// This will give us our warps per row. We will always have a few more warps than we need.
-		warps_per_row = blocks_per_row * warps_per_block;
-
-	}
-
-	threads_per_row = warps_per_row * THREADS_PER_WARP;
-	threads_per_block = warps_per_block * THREADS_PER_WARP;
-
-	#ifdef K_PARAM_INFO
-	printf("warps_per_row %d\nthreads_per_row %d\nblocks_per_row %d\nwarps_per_block %d\n", 
-		warps_per_row,
-		threads_per_row,
-		blocks_per_row,
-		warps_per_block
-	);
-	#endif
-}
-
-// todo: make this a kernel so we can just make all that data local to the device only.
-
 void initDeviceMemory (int numObjects) {
 
 	// Allocating device memory for velocities, positions, masses, and acceleration sums
@@ -106,16 +32,6 @@ void initDeviceMemory (int numObjects) {
 	cudaMalloc(&device_velocities, sizeof(vector3) * numObjects);
 	cudaMalloc(&device_positions, sizeof(vector3) * numObjects);
 	cudaMalloc(&device_masses, sizeof(double) * numObjects);
-	cudaMalloc(&accel_sums, sizeof(vector3) * numObjects);
-
-	// Allocating device memory for distances
-
-	cudaMalloc(&dists, sizeof(vector3*) * numObjects);
-	vector3* host_dists[numObjects];
-	for (int i = 0; i < numObjects; i++) {
-		cudaMalloc(&host_dists[i], sizeof(vector3) * NUMENTITIES);
-	}
-	cudaMemcpy(dists, host_dists, sizeof(vector3*) * numObjects, cudaMemcpyHostToDevice);
 
 	// Allocating device memory for accelerations
 
@@ -180,9 +96,14 @@ void freeDeviceMemory () {
 	cudaFree(device_velocities);
 	cudaFree(device_positions);
 	cudaFree(device_masses);
-	cudaFree(dists);
+
+	/**
+	 * TODO: I don't think this is freeing accels properly.
+	 * Don't we have to free all the pointers in accels first,
+	 * and then free accels itself?
+	 */
+
 	cudaFree(accels);
-	cudaFree(accel_sums);
 
 }
 
@@ -241,7 +162,6 @@ int main(int argc, char **argv)
 	srand(1234);
 	initHostMemory(NUMENTITIES);
 	initDeviceMemory(NUMENTITIES);
-	initKernelParameters();
 	planetFill();
 	randomFill(NUMPLANETS + 1, NUMASTEROIDS);
 	copyHostToDevice(NUMENTITIES);

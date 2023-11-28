@@ -1,95 +1,65 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <cooperative_groups.h>
 #include "vector.h"
 #include "config.h"
 
-#define SPATIAL_AXES 3
+__global__ void calcAccels (vector3** accels, vector3* positions, double* masses) {
 
-__global__ void calcDists (vector3** dists, vector3* positions, double* masses) {
+	int local_row = threadIdx.y;
+	int local_col = threadIdx.x;
 
-	int row = blockIdx.x;
-	int col = (blockDim.x * blockIdx.y) + threadIdx.x;
-	int axis = blockIdx.z;
+	int global_row = (blockIdx.y * blockDim.y) + local_row;
+	int global_col = (blockIdx.x * blockDim.x) + local_col;
+	int spatial_axis = threadIdx.z;
 
-	if (NUMENTITIES <= col) return;
+	if (NUMENTITIES <= global_col || NUMENTITIES <= global_row) return;
 
-	if (row == col) {
+	if (global_row == global_col) {
 
-		dists[row][col][axis] = 0;
-
-	} else {
-
-		dists[row][col][axis] = positions[row][axis] - positions[col][axis];
-
-	}
-}
-
-
-__global__ void calcAccels (vector3** accels, vector3** dists, double* masses) {
-
-	int row = blockIdx.x;
-	int col = (blockDim.x * blockIdx.y) + threadIdx.x;
-	int axis = blockIdx.z;
-
-	if (NUMENTITIES <= col) return;
-
-	if (row == col) {
-
-		accels[row][col][axis] = 0;
+		accels[global_row][global_col][spatial_axis] = 0;
 
 	} else {
 
-		#ifdef STRICT_ACCELS
+		__shared__ vector3 distances[BLOCK_WIDTH][BLOCK_WIDTH];
 
-		double magnitude_sq = __dadd_rn(__dadd_rn(__dmul_rn(dists[row][col][0], dists[row][col][0]), __dmul_rn(dists[row][col][1], dists[row][col][1])), __dmul_rn(dists[row][col][2], dists[row][col][2]));
+		distances[local_row][local_col][spatial_axis] = positions[global_row][spatial_axis] - positions[global_col][spatial_axis];
 
-		#else
+		__syncthreads();
 
-		double magnitude_sq = dists[row][col][0] * dists[row][col][0] + dists[row][col][1] * dists[row][col][1] + dists[row][col][2] * dists[row][col][2];
-
-		#endif
-
+		double magnitude_sq = distances[local_row][local_col][0] * distances[local_row][local_col][0] + distances[local_row][local_col][1] * distances[local_row][local_col][1] + distances[local_row][local_col][2] * distances[local_row][local_col][2];
 		double magnitude = sqrt(magnitude_sq);
-		double accelmag = -1 * GRAV_CONSTANT * masses[col] / magnitude_sq;
-		accels[row][col][axis] = accelmag * dists[row][col][axis] / magnitude;
+		double accelmag = -1 * GRAV_CONSTANT * masses[global_col] / magnitude_sq;
+		accels[global_row][global_col][spatial_axis] = accelmag * distances[local_row][local_col][spatial_axis] / magnitude;
 
 	}
 }
 
-__global__ void sumAccels (vector3** accels, vector3* accel_sums) {
+__global__ void sumAccels (vector3** accels) {
 
-	int row = blockIdx.x;
-	int col = (blockDim.x * blockIdx.y) + threadIdx.x;
-	int axis = blockIdx.z;
-
-	if (col != 0) return;
-
-	double accel_sum = 0;
+	int global_row = blockIdx.y;
+	int spatial_axis = threadIdx.z;
+	
+	double sum = 0;
 
 	for (int i = 0; i < NUMENTITIES; i++) {
-		accel_sum += accels[row][i][axis];
+		sum += accels[global_row][i][spatial_axis];
 	}
 
-	accel_sums[row][axis] = accel_sum;
+	accels[global_row][0][spatial_axis] = sum;
 }
 
-__global__ void calcChanges (vector3* accel_sums, vector3* velocities, vector3* positions) {
+__global__ void calcChanges (vector3** accels, vector3* velocities, vector3* positions) {
 
-	int row = blockIdx.x;
-	int col = (blockDim.x * blockIdx.y) + threadIdx.x;
-	int axis = blockIdx.z;
+	int global_row = blockIdx.y;
+	int spatial_axis = threadIdx.z;
 
-	if (col != 0) return;
-
-	velocities[row][axis] += accel_sums[row][axis] * INTERVAL;
-	positions[row][axis] += velocities[row][axis] * INTERVAL;
+	velocities[global_row][spatial_axis] += accels[global_row][0][spatial_axis] * INTERVAL;
+	positions[global_row][spatial_axis] += velocities[global_row][spatial_axis] * INTERVAL; 
 }
 
 void compute () {
-
-	dim3 blocks(NUMENTITIES, blocks_per_row, SPATIAL_AXES);
-	dim3 threads(threads_per_block);
 
 	#ifdef DEBUG
 	cudaError_t e = cudaGetLastError();
@@ -100,20 +70,12 @@ void compute () {
 		);
 	#endif
 
-	// Calculate Distances
-	calcDists<<<blocks, threads>>>(dists, device_positions, device_masses);
-	#ifdef DEBUG
-	cudaError_t calc_dists_error = cudaGetLastError();
-	if (calc_dists_error != cudaSuccess)
-		printf("calcDists kernel launch failed! %s: %s\n",
-			cudaGetErrorName(calc_dists_error),
-			cudaGetErrorString(calc_dists_error)
-		);
-	#endif
-	cudaDeviceSynchronize();
+	int grid_width = NUMENTITIES % BLOCK_WIDTH == 0 ? NUMENTITIES / BLOCK_WIDTH : (NUMENTITIES / BLOCK_WIDTH) + 1;
+	dim3 calc_grid_dims (grid_width, grid_width, 1);
+	dim3 calc_block_dims (BLOCK_WIDTH, BLOCK_WIDTH, SPATIAL_DIMS);
 
 	// Calculate Accelerations
-	calcAccels<<<blocks, threads>>>(accels, dists, device_masses);
+	calcAccels<<<calc_grid_dims, calc_block_dims>>>(accels, device_positions, device_masses);
 	#ifdef DEBUG
 	cudaError_t calc_accels_error = cudaGetLastError();
 	if (calc_accels_error != cudaSuccess) 
@@ -124,8 +86,11 @@ void compute () {
 	#endif
 	cudaDeviceSynchronize();
 
+	dim3 sum_grid_dims (1, NUMENTITIES, 1);
+	dim3 sum_block_dims (1, 1, SPATIAL_DIMS);
+
 	// Sum Accelerations
-	sumAccels<<<blocks, threads>>>(accels, accel_sums);
+	sumAccels<<<sum_grid_dims, sum_block_dims>>>(accels);
 	#ifdef DEBUG
 	cudaError_t sum_accels_error = cudaGetLastError();
 	if (sum_accels_error != cudaSuccess) 
@@ -137,7 +102,7 @@ void compute () {
 	cudaDeviceSynchronize();
 
 	// Calculating Changes
-	calcChanges<<<blocks, threads>>>(accel_sums, device_velocities, device_positions);
+	calcChanges<<<sum_grid_dims, sum_block_dims>>>(accels, device_velocities, device_positions);
 	#ifdef DEBUG
 	cudaError_t calc_changes_error = cudaGetLastError();
 	if (calc_changes_error != cudaSuccess) 
