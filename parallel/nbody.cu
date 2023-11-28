@@ -11,12 +11,8 @@ vector3* host_velocities;
 vector3* host_positions;
 double* host_masses;
 
-int threads_per_row;
-int warps_per_row;
 int blocks_per_row;
-
 int threads_per_block;
-int warps_per_block;
 
 vector3* device_velocities;
 vector3* device_positions;
@@ -34,65 +30,63 @@ void initHostMemory (int numObjects) {
 
 }
 
-void initKernelParameters () {
+void initBlocksAndThreads () {
 
-	// Setting initial values for warps_per_row and threads_per_row
+	// Setting initial value for warp_groups_per_row
 
-	warps_per_row = ceil((double)(NUMENTITIES) / (double)(THREADS_PER_WARP));
+	int warp_groups_per_row = ceil((double)(NUMENTITIES) / (double)(WARP_GROUP_SIZE * THREADS_PER_WARP));
 
-	// Now we have to evenly distibute our blocks across the rows.
+	// Everything below is to calculate how many blocks we have per row and how many threads we have per block.
 
-	bool warps_exceed_max = MAX_WARPS_PER_BLOCK < warps_per_row;
-	int leftover_warps = warps_per_row % MAX_WARPS_PER_BLOCK;
+	int warp_groups_exceed_max = MAX_WARP_GROUPS_PER_BLOCK < warp_groups_per_row;
+	int leftover_warp_groups = warp_groups_per_row % MAX_WARP_GROUPS_PER_BLOCK;
 
-	if (!warps_exceed_max) {
+	if (!warp_groups_exceed_max) {
 
 		/**
-		 * If we don't exceed the maximum number of warps, we have one block per row and
-		 * warps_per_block and warps_per_row are equal.
+		 * If we don't exceed the maximum number of warp groups, we have one block per row.
 		 */
 
 		blocks_per_row = 1;
-		warps_per_block = warps_per_row;
+		threads_per_block = warp_groups_per_row * THREADS_PER_WARP_GROUP;
 
-	} else if (leftover_warps == 0) {
+	} else if (leftover_warp_groups == 0) {
 
 		/**
-		 * If we have more warps per row than our maximum but there are no leftover warps,
-		 * that means that warps_per_block is the maximum and blocks_per_row can be found
-		 * by simply dividing. 
+		 * If we have more warp groups per row than our maximum but there are no leftover warp groups,
+		 * that means that there is the maximum number of warp groups in all blocks.
 		 */
 
-		blocks_per_row = warps_per_row / MAX_WARPS_PER_BLOCK;
-		warps_per_block = MAX_WARPS_PER_BLOCK;
+		blocks_per_row = warp_groups_per_row / MAX_WARP_GROUPS_PER_BLOCK;
+		threads_per_block = MAX_WARP_GROUPS_PER_BLOCK * THREADS_PER_WARP_GROUP;
 
 	} else {
 
 		/**
-		 * If we're here, that means we have more warps_per_row than we can hold in a single
-		 * block, but also our warps_per_row doesn't divide equally, so we have leftover warps
-		 * that have no block to live in. So we need to create a new block and then evenly
-		 * distribute our warps into our new number of blocks. 
+		 * If we're here, that means we have more warp groups per row than we can hold in a single
+		 * block, and the number of warp groups per row doesn't divide equally across the blocks.
+		 * We have leftoever warp groups that need to be put in a block, but all blocks are already
+		 * maxxed out. So we need to create a new block and then evenly redistribute our warp groups
+		 * into the blocks. 
 		 */
 
-		// This will give us one more block so we have room for our leftover warps
-		blocks_per_row = ceil((double)(warps_per_row) / (double)(MAX_WARPS_PER_BLOCK));
-		// This will give us the number of blocks per warp required to cover all our warps
-		warps_per_block = ceil((double)(warps_per_row) / (double)(blocks_per_row));
-		// This will give us our warps per row. We will always have a few more warps than we need.
-		warps_per_row = blocks_per_row * warps_per_block;
+		// This will give us one more block so we have room for our leftover warp groups.
+		blocks_per_row = ceil((double)(warp_groups_per_row) / (double)(MAX_WARP_GROUPS_PER_BLOCK));
+		// This will give us the number of warp groups per block.
+		int warp_groups_per_block = ceil((double)(warp_groups_per_row) / (double)(blocks_per_row));
+		// Now we can get the number of threads per block by multiplying.
+		threads_per_block = warp_groups_per_block * THREADS_PER_WARP_GROUP;
 
+		#ifdef BLOCKS_THREADS_INIT_INFO
+		warp_groups_per_row = blocks_per_row * warp_groups_per_block;
+		#endif
 	}
 
-	threads_per_row = warps_per_row * THREADS_PER_WARP;
-	threads_per_block = warps_per_block * THREADS_PER_WARP;
-
-	#ifdef K_PARAM_INFO
-	printf("warps_per_row %d\nthreads_per_row %d\nblocks_per_row %d\nwarps_per_block %d\n", 
-		warps_per_row,
-		threads_per_row,
+	#ifdef BLOCKS_THREADS_INIT_INFO
+	printf("warp_groups_per_row %d\nblocks_per_row %d\nthreads_per_block %d\n",
+		warp_groups_per_row,
 		blocks_per_row,
-		warps_per_block
+		threads_per_block
 	);
 	#endif
 }
@@ -180,6 +174,12 @@ void freeDeviceMemory () {
 	cudaFree(device_velocities);
 	cudaFree(device_positions);
 	cudaFree(device_masses);
+
+	/**
+	 * TODO: I don't think dists is getting freed properly. Need the free the rows
+	 * before freeing the double pointer?
+	 */
+
 	cudaFree(dists);
 	cudaFree(accels);
 	cudaFree(accel_sums);
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
 	srand(1234);
 	initHostMemory(NUMENTITIES);
 	initDeviceMemory(NUMENTITIES);
-	initKernelParameters();
+	initBlocksAndThreads();
 	planetFill();
 	randomFill(NUMPLANETS + 1, NUMASTEROIDS);
 	copyHostToDevice(NUMENTITIES);
@@ -250,7 +250,7 @@ int main(int argc, char **argv)
 	printSystem(stdout);
 	#endif
 
-	for (t_now=0;t_now<DURATION;t_now+=INTERVAL) {
+	for (t_now=0; t_now < DURATION; t_now += INTERVAL) {
 		compute();
 	}
 
