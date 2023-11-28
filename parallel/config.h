@@ -16,9 +16,8 @@
 #define DURATION (10*YEAR)
 #define INTERVAL DAY
 // My Configurables
-#define MAX_THREADS_PER_BLOCK 1024
-#define THREADS_PER_WARP 32
-#define MAX_WARPS_PER_BLOCK 32
+#define SPATIAL_DIMS 3
+#define BLOCK_WIDTH 16
 // End Configurables
 
 #define NUMENTITIES (NUMPLANETS+NUMASTEROIDS+1)
