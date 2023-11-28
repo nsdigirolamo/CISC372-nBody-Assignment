@@ -9,7 +9,8 @@
 (
     cd parallel; 
     echo "Compiling parallel..."; 
-    make; echo "Running parallel..."; 
+    make; 
+    echo "Running parallel..."; 
     srun ./nbody > out.txt; 
     echo "Parallel complete!"
 )
