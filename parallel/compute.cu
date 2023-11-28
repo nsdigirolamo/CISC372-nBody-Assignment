@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include <cooperative_groups.h>
 #include "vector.h"
 #include "config.h"
 
