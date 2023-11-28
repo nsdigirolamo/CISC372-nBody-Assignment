@@ -19,7 +19,6 @@ extern vector3* device_velocities;
 extern vector3* device_positions;
 extern double* device_masses;
 
-extern vector3** dists;
 extern vector3** accels;
 extern vector3* accel_sums;
 

@@ -22,7 +22,6 @@ vector3* device_velocities;
 vector3* device_positions;
 double* device_masses;
 
-vector3** dists;
 vector3** accels;
 vector3* accel_sums;
 
@@ -108,15 +107,6 @@ void initDeviceMemory (int numObjects) {
 	cudaMalloc(&device_masses, sizeof(double) * numObjects);
 	cudaMalloc(&accel_sums, sizeof(vector3) * numObjects);
 
-	// Allocating device memory for distances
-
-	cudaMalloc(&dists, sizeof(vector3*) * numObjects);
-	vector3* host_dists[numObjects];
-	for (int i = 0; i < numObjects; i++) {
-		cudaMalloc(&host_dists[i], sizeof(vector3) * NUMENTITIES);
-	}
-	cudaMemcpy(dists, host_dists, sizeof(vector3*) * numObjects, cudaMemcpyHostToDevice);
-
 	// Allocating device memory for accelerations
 
 	cudaMalloc(&accels, sizeof(vector3*) * numObjects);
@@ -180,7 +170,6 @@ void freeDeviceMemory () {
 	cudaFree(device_velocities);
 	cudaFree(device_positions);
 	cudaFree(device_masses);
-	cudaFree(dists);
 	cudaFree(accels);
 	cudaFree(accel_sums);
 
