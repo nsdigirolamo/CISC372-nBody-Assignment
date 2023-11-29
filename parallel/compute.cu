@@ -139,9 +139,6 @@ void compute () {
 
 	// Calculating Changes
 
-	/**
-	 * TODO: This isn't the best right now. Only assigns three threads per row.
-	 */
 	dim3 changes_grid_dims (1, NUMENTITIES, 1);
 	dim3 changes_block_dims (1, 1, SPATIAL_DIMS);
 
