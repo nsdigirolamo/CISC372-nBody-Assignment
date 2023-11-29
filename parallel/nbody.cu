@@ -49,6 +49,7 @@ void initDeviceMemory (int numObjects) {
 			cudaGetErrorName(e),
 			cudaGetErrorString(e)
 		);
+	fflush(stdout);
 	#endif
 }
 
@@ -65,6 +66,7 @@ void copyHostToDevice (int numObjects) {
 			cudaGetErrorName(e),
 			cudaGetErrorString(e)
 		);
+	fflush(stdout);
 	#endif
 }
 
@@ -80,6 +82,7 @@ void copyDeviceToHost (int numObjects) {
 			cudaGetErrorName(e),
 			cudaGetErrorString(e)
 		);
+	fflush(stdout);
 	#endif
 }
 
