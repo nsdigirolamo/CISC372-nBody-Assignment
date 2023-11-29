@@ -88,8 +88,9 @@ void compute () {
 	dim3 accels_block_dims (SQUARE_SIZE, SQUARE_SIZE, SPATIAL_DIMS);
 
 	calcAccels<<<accels_grid_dims, accels_block_dims>>>(accels, device_positions, device_masses);
+
 	#ifdef DEBUG
-	cudaError_t calc_accels_error = cudaGetLastError();
+	cudaError_t calc_accels_error = cudaDeviceSynchronize();
 	if (calc_accels_error != cudaSuccess) {
 		printf("calcAccels kernel launch failed! %s: %s\n",
 			cudaGetErrorName(calc_accels_error),
@@ -106,7 +107,6 @@ void compute () {
 	}
 	fflush(stdout);
 	#endif
-	cudaDeviceSynchronize();
 
 	// Sum Accelerations
 
@@ -117,8 +117,9 @@ void compute () {
 	dim3 sum_block_dims (1, 1, SPATIAL_DIMS);
 
 	sumAccels<<<sum_grid_dims, sum_block_dims>>>(accels);
+
 	#ifdef DEBUG
-	cudaError_t sum_accels_error = cudaGetLastError();
+	cudaError_t sum_accels_error = cudaDeviceSynchronize();;
 	if (sum_accels_error != cudaSuccess) {
 		printf("sumAccels kernel launch failed! %s: %s\n",
 			cudaGetErrorName(sum_accels_error),
@@ -135,7 +136,6 @@ void compute () {
 	}
 	fflush(stdout);
 	#endif
-	cudaDeviceSynchronize();
 
 	// Calculating Changes
 
@@ -146,8 +146,9 @@ void compute () {
 	dim3 changes_block_dims (1, 1, SPATIAL_DIMS);
 
 	calcChanges<<<changes_grid_dims, changes_block_dims>>>(accels, device_velocities, device_positions);
+
 	#ifdef DEBUG
-	cudaError_t calc_changes_error = cudaGetLastError();
+	cudaError_t calc_changes_error = cudaDeviceSynchronize();;
 	if (calc_changes_error != cudaSuccess) {
 		printf("calcChanges kernel launch failed! %s: %s\n",
 			cudaGetErrorName(calc_changes_error),
@@ -164,5 +165,4 @@ void compute () {
 	}
 	fflush(stdout);
 	#endif
-	cudaDeviceSynchronize();
 }
