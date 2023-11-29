@@ -62,8 +62,11 @@ __global__ void sumAccels (vector3** accels) {
 
 __global__ void calcChanges (vector3** accels, vector3* velocities, vector3* positions) {
 
-	int global_row = blockIdx.y;
+	int local_row = threadIdx.y;
+	int global_row = (blockIdx.y * blockDim.y) + local_row;
 	int spatial_axis = threadIdx.z;
+
+	if (NUMENTITIES <= global_row) return;
 
 	velocities[global_row][spatial_axis] += accels[global_row][0][spatial_axis] * INTERVAL;
 	positions[global_row][spatial_axis] += velocities[global_row][spatial_axis] * INTERVAL; 
@@ -139,10 +142,7 @@ void compute () {
 
 	// Calculating Changes
 
-	dim3 changes_grid_dims (1, NUMENTITIES, 1);
-	dim3 changes_block_dims (1, 1, SPATIAL_DIMS);
-
-	calcChanges<<<changes_grid_dims, changes_block_dims>>>(accels, device_velocities, device_positions);
+	calcChanges<<<calc_changes_grid_dims, calc_changes_block_dims>>>(accels, device_velocities, device_positions);
 
 	#ifdef DEBUG
 	cudaError_t calc_changes_error = cudaDeviceSynchronize();;
@@ -152,12 +152,12 @@ void compute () {
 			cudaGetErrorString(calc_changes_error)
 		);
 		printf("\tcalcChanges Config: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
-			changes_grid_dims.x,
-			changes_grid_dims.y,
-			changes_grid_dims.z,
-			changes_block_dims.x,
-			changes_block_dims.y,
-			changes_block_dims.z
+			calc_changes_grid_dims.x,
+			calc_changes_grid_dims.y,
+			calc_changes_grid_dims.z,
+			calc_changes_block_dims.x,
+			calc_changes_block_dims.y,
+			calc_changes_block_dims.z
 		);
 	}
 	fflush(stdout);
