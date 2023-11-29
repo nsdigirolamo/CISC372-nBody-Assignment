@@ -4,6 +4,17 @@
 #include "vector.h"
 #include "config.h"
 
+int calcGridDim (int block_width, int entity_count) {
+
+	if (entity_count < block_width) return 1;
+
+	int grid_width = entity_count / block_width;
+
+	if (entity_count % block_width == 0) return grid_width;
+
+	return grid_width + 1;
+}
+
 __global__ void calcAccels (vector3** accels, vector3* positions, double* masses) {
 
 	int local_row = threadIdx.y;
@@ -21,7 +32,7 @@ __global__ void calcAccels (vector3** accels, vector3* positions, double* masses
 
 	} else {
 
-		__shared__ vector3 distances[BLOCK_WIDTH][BLOCK_WIDTH];
+		__shared__ vector3 distances[SQUARE_SIZE][SQUARE_SIZE];
 
 		distances[local_row][local_col][spatial_axis] = positions[global_row][spatial_axis] - positions[global_col][spatial_axis];
 
@@ -67,48 +78,91 @@ void compute () {
 			cudaGetErrorName(e),
 			cudaGetErrorString(e)
 		);
+	fflush(stdout);
 	#endif
 
-	int grid_width = NUMENTITIES % BLOCK_WIDTH == 0 ? NUMENTITIES / BLOCK_WIDTH : (NUMENTITIES / BLOCK_WIDTH) + 1;
-	dim3 calc_grid_dims (grid_width, grid_width, 1);
-	dim3 calc_block_dims (BLOCK_WIDTH, BLOCK_WIDTH, SPATIAL_DIMS);
-
 	// Calculate Accelerations
-	calcAccels<<<calc_grid_dims, calc_block_dims>>>(accels, device_positions, device_masses);
+
+	int accels_grid_width = calcGridDim(SQUARE_SIZE, NUMENTITIES);
+	dim3 accels_grid_dims (accels_grid_width, accels_grid_width, 1);
+	dim3 accels_block_dims (SQUARE_SIZE, SQUARE_SIZE, SPATIAL_DIMS);
+
+	calcAccels<<<accels_grid_dims, accels_block_dims>>>(accels, device_positions, device_masses);
 	#ifdef DEBUG
 	cudaError_t calc_accels_error = cudaGetLastError();
-	if (calc_accels_error != cudaSuccess) 
+	if (calc_accels_error != cudaSuccess) {
 		printf("calcAccels kernel launch failed! %s: %s\n",
 			cudaGetErrorName(calc_accels_error),
 			cudaGetErrorString(calc_accels_error)
 		);
+		printf("\tcalcAccels Config: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
+			accels_grid_dims.x,
+			accels_grid_dims.y,
+			accels_grid_dims.z,
+			accels_block_dims.x,
+			accels_block_dims.y,
+			accels_block_dims.z
+		);
+	}
+	fflush(stdout);
 	#endif
 	cudaDeviceSynchronize();
 
+	// Sum Accelerations
+
+	/**
+	 * TODO: This isn't the best right now. Only assigns three threads per row.
+	 */
 	dim3 sum_grid_dims (1, NUMENTITIES, 1);
 	dim3 sum_block_dims (1, 1, SPATIAL_DIMS);
 
-	// Sum Accelerations
 	sumAccels<<<sum_grid_dims, sum_block_dims>>>(accels);
 	#ifdef DEBUG
 	cudaError_t sum_accels_error = cudaGetLastError();
-	if (sum_accels_error != cudaSuccess) 
+	if (sum_accels_error != cudaSuccess) {
 		printf("sumAccels kernel launch failed! %s: %s\n",
 			cudaGetErrorName(sum_accels_error),
 			cudaGetErrorString(sum_accels_error)
 		);
+		printf("\tsumAccels Config: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
+			sum_grid_dims.x,
+			sum_grid_dims.y,
+			sum_grid_dims.z,
+			sum_block_dims.x,
+			sum_block_dims.y,
+			sum_block_dims.z
+		);
+	}
+	fflush(stdout);
 	#endif
 	cudaDeviceSynchronize();
 
 	// Calculating Changes
-	calcChanges<<<sum_grid_dims, sum_block_dims>>>(accels, device_velocities, device_positions);
+
+	/**
+	 * TODO: This isn't the best right now. Only assigns three threads per row.
+	 */
+	dim3 changes_grid_dims (1, NUMENTITIES, 1);
+	dim3 changes_block_dims (1, 1, SPATIAL_DIMS);
+
+	calcChanges<<<changes_grid_dims, changes_block_dims>>>(accels, device_velocities, device_positions);
 	#ifdef DEBUG
 	cudaError_t calc_changes_error = cudaGetLastError();
-	if (calc_changes_error != cudaSuccess) 
+	if (calc_changes_error != cudaSuccess) {
 		printf("calcChanges kernel launch failed! %s: %s\n",
 			cudaGetErrorName(calc_changes_error),
 			cudaGetErrorString(calc_changes_error)
 		);
+		printf("\tcalcChanges Config: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
+			changes_grid_dims.x,
+			changes_grid_dims.y,
+			changes_grid_dims.z,
+			changes_block_dims.x,
+			changes_block_dims.y,
+			changes_block_dims.z
+		);
+	}
+	fflush(stdout);
 	#endif
 	cudaDeviceSynchronize();
 }
