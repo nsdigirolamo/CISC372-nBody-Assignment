@@ -12,13 +12,16 @@
 #define GRAV_CONSTANT 6.67e-11
 #define MAX_DISTANCE 5000.0
 #define MAX_VELOCITY 50000.0
-#define MAX_MASS 938e18  // Approximate mass of Ceres
+#define MAX_MASS 938e18 // Approximate mass of Ceres
 #define DURATION (10*YEAR)
 #define INTERVAL DAY
-// My Configurables
-#define SPATIAL_DIMS 3
-#define BLOCK_WIDTH 16
 // End Configurables
+
+// My Constants
+#define MAX_THREADS_PER_BLOCK 1024
+#define SPATIAL_DIMS 3
+#define SQUARE_SIZE 16
+#define SUM_LENGTH 256
 
 #define NUMENTITIES (NUMPLANETS+NUMASTEROIDS+1)
 #endif
