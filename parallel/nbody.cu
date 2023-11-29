@@ -7,15 +7,42 @@
 #include "planets.h"
 #include "compute.h"
 
+// Host Memory
+
 vector3* host_velocities;
 vector3* host_positions;
 double* host_masses;
+
+// Device Memory
 
 vector3* device_velocities;
 vector3* device_positions;
 double* device_masses;
 
 vector3** accels;
+
+// Kernel Config Arguments
+
+dim3 calc_changes_grid_dims;
+dim3 calc_changes_block_dims;
+
+void initCalcChangesDims () {
+
+	int max_height = MAX_THREADS_PER_BLOCK / SPATIAL_DIMS;
+	int grid_height = (NUMENTITIES / max_height) + 1;
+	int block_height = (NUMENTITIES / grid_height) + 1;
+
+	int leftovers = block_height % WARP_SIZE;
+	if (leftovers != 0) block_height += (WARP_SIZE - leftovers);
+
+	calc_changes_grid_dims.x = 1;
+	calc_changes_grid_dims.y = grid_height;
+	calc_changes_grid_dims.z = 1;
+
+	calc_changes_block_dims.x = 1;
+	calc_changes_block_dims.y = block_height;
+	calc_changes_block_dims.z = SPATIAL_DIMS;
+}
 
 void initHostMemory (int numObjects) {
 
@@ -163,6 +190,7 @@ int main(int argc, char **argv)
 	int t_now;
 
 	srand(1234);
+	initCalcChangesDims();
 	initHostMemory(NUMENTITIES);
 	initDeviceMemory(NUMENTITIES);
 	planetFill();
