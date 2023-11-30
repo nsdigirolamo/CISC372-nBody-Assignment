@@ -48,6 +48,11 @@ __global__ void calcAccels (vector3** accels, vector3* positions, double* masses
 
 __global__ void sumAccels (vector3** accels, int global_sum_length) {
 
+	/**
+	 * I used this resource to help me optimize my code.
+	 * https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
+	 */
+
 	int local_col = threadIdx.x;
 
 	int global_row = blockIdx.y;
@@ -57,9 +62,16 @@ __global__ void sumAccels (vector3** accels, int global_sum_length) {
 
 	__shared__ vector3 sums[SUM_LENGTH];
 
+	/**
+	 * We need to zero out the values in sums because some local_cols may not be
+	 * needed. If they don't zero out their values, some other thread may try
+	 * to add a garbage value to their own good value.
+	 */
 	sums[local_col][spatial_axis] = 0;
 
 	if (global_sum_length <= global_col) return;
+
+	// Below initializes the shared array with summed global values.
 
 	int offset = 1;
 	bool neighbor_exceeds_bounds = global_sum_length <= global_col + offset;
@@ -74,21 +86,16 @@ __global__ void sumAccels (vector3** accels, int global_sum_length) {
 
 	}
 
-	bool root_is_working = offset < SUM_LENGTH;
+	// We will now treat the local_col as a thread id
+	int thread_id = local_col;
 
-	while (root_is_working) {
-
-		neighbor_exceeds_bounds = SUM_LENGTH <= local_col + offset;
-		bool i_am_working = local_col % (offset * 2) == 0;
-
-		if (i_am_working && !neighbor_exceeds_bounds) {
-
-			sums[local_col][spatial_axis] += sums[local_col + offset][spatial_axis];
-
+	for (offset = 1; offset < SUM_LENGTH; offset *= 2) {
+		// This will produce a strided index from the thread_id
+		int i = 2 * offset * thread_id;
+		// This allows for a non-divergent branch within the loop.
+		if (i < SUM_LENGTH) {
+			sums[i][spatial_axis] += sums[i + offset][spatial_axis];
 		}
-
-		offset *= 2;
-		root_is_working = offset < SUM_LENGTH;
 		__syncthreads();
 	}
 
@@ -121,10 +128,6 @@ void compute () {
 
 	// Calculate Accelerations
 
-	int accels_grid_width = calcGridDim(SQUARE_SIZE, NUMENTITIES);
-	dim3 accels_grid_dims (accels_grid_width, accels_grid_width, 1);
-	dim3 accels_block_dims (SQUARE_SIZE, SQUARE_SIZE, SPATIAL_DIMS);
-
 	calcAccels<<<accels_grid_dims, accels_block_dims>>>(accels, device_positions, device_masses);
 
 	#ifdef DEBUG
@@ -148,35 +151,37 @@ void compute () {
 
 	// Sum Accelerations
 
-	int sum_grid_width = calcGridDim(SUM_LENGTH * 2, NUMENTITIES); // Multiply by two because each thread reduces two data points in accels.
-	dim3 sum_grid_dims (sum_grid_width, NUMENTITIES, 1);
+	int global_sum_length = NUMENTITIES;
 	dim3 sum_block_dims (SUM_LENGTH, 1, SPATIAL_DIMS);
 
-	/**
-	 * TODO: Right now, this kernel can only reduce rows that are less than 512.
-	 * Fix it. Make the kernel work when 512 <= NUMENTITIES
-	 */
+	while (1 < global_sum_length) {
 
-	sumAccels<<<sum_grid_dims, sum_block_dims>>>(accels, NUMENTITIES);
+		int sum_grid_width = calcGridDim(SUM_LENGTH * 2, global_sum_length); // Multiply by two because each thread reduces two data points in accels.
+		dim3 sum_grid_dims (sum_grid_width, NUMENTITIES, 1);
 
-	#ifdef DEBUG
-	cudaError_t sum_accels_error = cudaGetLastError();
-	if (sum_accels_error != cudaSuccess) {
-		printf("sumAccels kernel launch failed! %s: %s\n",
-			cudaGetErrorName(sum_accels_error),
-			cudaGetErrorString(sum_accels_error)
-		);
-		printf("\tsumAccels Config: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
-			sum_grid_dims.x,
-			sum_grid_dims.y,
-			sum_grid_dims.z,
-			sum_block_dims.x,
-			sum_block_dims.y,
-			sum_block_dims.z
-		);
+		sumAccels<<<sum_grid_dims, sum_block_dims>>>(accels, global_sum_length);
+
+		#ifdef DEBUG
+		cudaError_t sum_accels_error = cudaGetLastError();
+		if (sum_accels_error != cudaSuccess) {
+			printf("sumAccels kernel launch failed! %s: %s\n",
+				cudaGetErrorName(sum_accels_error),
+				cudaGetErrorString(sum_accels_error)
+			);
+			printf("\tsumAccels Config: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
+				sum_grid_dims.x,
+				sum_grid_dims.y,
+				sum_grid_dims.z,
+				sum_block_dims.x,
+				sum_block_dims.y,
+				sum_block_dims.z
+			);
+		}
+		fflush(stdout);
+		#endif
+
+		global_sum_length = sum_grid_width;
 	}
-	fflush(stdout);
-	#endif
 
 	// Calculating Changes
 
