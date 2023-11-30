@@ -164,7 +164,7 @@ void randomFill (int start, int count) {
 	}
 }
 
-void printSystem(FILE* handle){
+void printSystem (FILE* handle){
 
 	int i, j;
 
@@ -181,6 +181,26 @@ void printSystem(FILE* handle){
 		}
 
 		fprintf(handle,"),m=%lf\n",host_masses[i]);
+	}
+}
+
+void printSystemAlt (FILE* handle) {
+	
+	int i, j;
+
+	for (i = 0; i < NUMENTITIES; i++) {
+
+		fprintf(handle, "pos=(");
+		for (j = 0; j < 3; j++) {
+			fprintf(handle, "%1.5e,", host_positions[i][j]);
+		}
+
+		printf("),v=(");
+		for (j = 0; j < 3; j++) {
+			fprintf(handle, "%1.5e,", host_velocities[i][j]);
+		}
+
+		fprintf(handle,"),m=%1.5e\n", host_masses[i]);
 	}
 }
 
@@ -209,8 +229,22 @@ int main(int argc, char **argv)
 
 	clock_t t1 = clock() - t0;
 
+	/**
+	 * 
+	 * 	#ifdef DEBUG
+	 *	printSystem(stdout);
+	 *	#endif
+	 * 
+	 * Below is different from the original file. The original file's
+	 * code is kept above for documentation purposes.
+	 */
+
 	#ifdef DEBUG
-	printSystem(stdout);
+		#ifdef ALT_PRINT_SYSTEM
+		printSystemAlt(stdout);
+		#else
+		printSystem(stdout);
+		#endif
 	#endif
 
 	printf("This took a total time of %f seconds\n", (double)(t1) / CLOCKS_PER_SEC);
