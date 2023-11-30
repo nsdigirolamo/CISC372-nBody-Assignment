@@ -106,7 +106,7 @@ __global__ void calcChanges (vector3** accels, vector3* velocities, vector3* pos
 
 	int local_row = threadIdx.y;
 	int global_row = (blockIdx.y * blockDim.y) + local_row;
-	int spatial_axis = threadIdx.z;
+	int spatial_axis = blockIdx.z;
 
 	if (NUMENTITIES <= global_row) return;
 
