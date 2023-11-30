@@ -23,4 +23,7 @@ extern vector3** accels;
 extern dim3 calc_changes_grid_dims;
 extern dim3 calc_changes_block_dims;
 
+extern dim3 accels_grid_dims;
+extern dim3 accels_block_dims;
+
 #endif
