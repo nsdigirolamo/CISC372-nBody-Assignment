@@ -26,13 +26,41 @@ vector3** accels;
 dim3 calc_changes_grid_dims;
 dim3 calc_changes_block_dims;
 
-int accels_grid_width = calcGridDim(SQUARE_SIZE, NUMENTITIES);
-dim3 accels_grid_dims (accels_grid_width, accels_grid_width, 1);
-dim3 accels_block_dims (SQUARE_SIZE, SQUARE_SIZE, SPATIAL_DIMS);
+dim3 calc_accels_grid_dims;
+dim3 calc_accels_block_dims;
+
+void initCalcAccelsDims () {
+
+	int grid_width = MINIMUM_DIM_SIZE;
+
+	if (CALC_ACCELS_BLOCK_WIDTH < NUMENTITIES) {
+		grid_width = NUMENTITIES / CALC_ACCELS_BLOCK_WIDTH;
+		if (NUMENTITIES % CALC_ACCELS_BLOCK_WIDTH) grid_width += 1;
+	}
+
+	calc_accels_grid_dims.x = grid_width;
+	calc_accels_grid_dims.y = grid_width;
+	calc_accels_grid_dims.z = MINIMUM_DIM_SIZE;
+
+	calc_accels_block_dims.x = CALC_ACCELS_BLOCK_WIDTH;
+	calc_accels_block_dims.y = CALC_ACCELS_BLOCK_WIDTH;
+	calc_accels_block_dims.z = SPATIAL_DIMS;
+
+	#ifdef KERNEL_ARGS_DEBUG
+	printf("initCalcAccelsDim(): gridDims: {%d, %d, %d}, blockDims: {%d, %d, %d}\n",
+		calc_accels_grid_dims.x,
+		calc_accels_grid_dims.y,
+		calc_accels_grid_dims.z,
+		calc_accels_block_dims.x,
+		calc_accels_block_dims.y,
+		calc_accels_block_dims.z
+	);
+	#endif
+}
 
 void initCalcChangesDims () {
 
-	int grid_height = 1;
+	int grid_height = MINIMUM_DIM_SIZE;
 
 	if (MAX_THREADS_PER_BLOCK < NUMENTITIES) {
 		grid_height = NUMENTITIES / MAX_THREADS_PER_BLOCK;
@@ -44,16 +72,16 @@ void initCalcChangesDims () {
 	int warp_offset = block_height % WARP_SIZE;
 	if (warp_offset) block_height += (WARP_SIZE - warp_offset);
 
-	calc_changes_grid_dims.x = 1;
+	calc_changes_grid_dims.x = MINIMUM_DIM_SIZE;
 	calc_changes_grid_dims.y = grid_height;
 	calc_changes_grid_dims.z = SPATIAL_DIMS;
 
-	calc_changes_block_dims.x = 1;
+	calc_changes_block_dims.x = MINIMUM_DIM_SIZE;
 	calc_changes_block_dims.y = block_height;
-	calc_changes_block_dims.z = 1;
+	calc_changes_block_dims.z = MINIMUM_DIM_SIZE;
 
 	#ifdef KERNEL_ARGS_DEBUG
-	printf("calcChanges() gridDims {%d %d %d} blockDims {%d %d %d}\n",
+	printf("initCalcChangesDim(): gridDims: {%d, %d, %d}, blockDims: {%d, %d, %d}\n",
 		calc_changes_grid_dims.x,
 		calc_changes_grid_dims.y,
 		calc_changes_grid_dims.z,
@@ -231,6 +259,7 @@ int main(int argc, char **argv)
 
 	srand(1234);
 	initCalcChangesDims();
+	initCalcAccelsDims();
 	initHostMemory(NUMENTITIES);
 	initDeviceMemory(NUMENTITIES);
 	planetFill();
