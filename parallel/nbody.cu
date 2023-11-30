@@ -32,20 +32,36 @@ dim3 accels_block_dims (SQUARE_SIZE, SQUARE_SIZE, SPATIAL_DIMS);
 
 void initCalcChangesDims () {
 
-	int max_height = MAX_THREADS_PER_BLOCK / SPATIAL_DIMS;
-	int grid_height = (NUMENTITIES / max_height) + 1;
-	int block_height = (NUMENTITIES / grid_height) + 1;
+	int grid_height = 1;
 
-	int leftovers = block_height % WARP_SIZE;
-	if (leftovers != 0) block_height += (WARP_SIZE - leftovers);
+	if (MAX_THREADS_PER_BLOCK < NUMENTITIES) {
+		grid_height = NUMENTITIES / MAX_THREADS_PER_BLOCK;
+		if (NUMENTITIES % MAX_THREADS_PER_BLOCK) grid_height += 1;
+	}
+
+	int block_height = NUMENTITIES / grid_height;
+	if (NUMENTITIES % grid_height) block_height += 1;
+	int warp_offset = block_height % WARP_SIZE;
+	if (warp_offset) block_height += (WARP_SIZE - warp_offset);
 
 	calc_changes_grid_dims.x = 1;
 	calc_changes_grid_dims.y = grid_height;
-	calc_changes_grid_dims.z = 1;
+	calc_changes_grid_dims.z = SPATIAL_DIMS;
 
 	calc_changes_block_dims.x = 1;
 	calc_changes_block_dims.y = block_height;
-	calc_changes_block_dims.z = SPATIAL_DIMS;
+	calc_changes_block_dims.z = 1;
+
+	#ifdef KERNEL_ARGS_DEBUG
+	printf("calcChanges() gridDims {%d %d %d} blockDims {%d %d %d}\n",
+		calc_changes_grid_dims.x,
+		calc_changes_grid_dims.y,
+		calc_changes_grid_dims.z,
+		calc_changes_block_dims.x,
+		calc_changes_block_dims.y,
+		calc_changes_block_dims.z
+	);
+	#endif
 }
 
 void initHostMemory (int numObjects) {
