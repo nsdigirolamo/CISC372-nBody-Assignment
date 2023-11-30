@@ -51,19 +51,22 @@ __global__ void sumAccels (vector3** accels, int global_sum_length) {
 	int local_col = threadIdx.x;
 
 	int global_row = blockIdx.y;
-	int global_col = (blockDim.x * blockIdx.x) + local_col;
+	// Double our offsets because each thread is assigned two data points globally
+	int global_col = (blockIdx.x * blockDim.x * 2) + (local_col * 2);
 	int spatial_axis = threadIdx.z;
-
-	if (global_sum_length <= global_col) return;
 
 	__shared__ vector3 sums[SUM_LENGTH];
 
+	sums[local_col][spatial_axis] = 0;
+
+	if (global_sum_length <= global_col) return;
+
 	int offset = 1;
-	bool neighbor_exceeds_length = SUM_LENGTH <= local_col + offset || global_sum_length <= global_col + offset;
+	bool neighbor_exceeds_bounds = global_sum_length <= global_col + offset;
 
-	if (!neighbor_exceeds_length) {
+	if (!neighbor_exceeds_bounds) {
 
-		sums[local_col][spatial_axis] = accels[global_row][global_col][spatial_axis] + accels[global_row][global_col + offset][spatial_axis];
+		sums[local_col][spatial_axis] = accels[global_row][global_col][spatial_axis] + accels[global_row][global_col + 1][spatial_axis];
 
 	} else {
 
@@ -71,22 +74,21 @@ __global__ void sumAccels (vector3** accels, int global_sum_length) {
 
 	}
 
-	offset *= 2;
-	bool root_is_working = offset < global_sum_length;
+	bool root_is_working = offset < SUM_LENGTH;
 
 	while (root_is_working) {
 
-		neighbor_exceeds_length = SUM_LENGTH <= local_col + offset;
-		bool thread_is_working = local_col % offset == 0;
+		neighbor_exceeds_bounds = SUM_LENGTH <= local_col + offset;
+		bool i_am_working = local_col % (offset * 2) == 0;
 
-		if (thread_is_working && !neighbor_exceeds_length) {
+		if (i_am_working && !neighbor_exceeds_bounds) {
 
 			sums[local_col][spatial_axis] += sums[local_col + offset][spatial_axis];
 
 		}
 
 		offset *= 2;
-		root_is_working = offset < global_sum_length;
+		root_is_working = offset < SUM_LENGTH;
 		__syncthreads();
 	}
 
