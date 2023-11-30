@@ -32,7 +32,7 @@ __global__ void calcAccels (vector3** accels, vector3* positions, double* masses
 
 	} else {
 
-		__shared__ vector3 distances[SQUARE_SIZE][SQUARE_SIZE];
+		__shared__ vector3 distances[CALC_ACCELS_BLOCK_WIDTH][CALC_ACCELS_BLOCK_WIDTH];
 
 		distances[local_row][local_col][spatial_axis] = positions[global_row][spatial_axis] - positions[global_col][spatial_axis];
 
@@ -128,7 +128,7 @@ void compute () {
 
 	// Calculate Accelerations
 
-	calcAccels<<<accels_grid_dims, accels_block_dims>>>(accels, device_positions, device_masses);
+	calcAccels<<<calc_accels_grid_dims, calc_accels_block_dims>>>(accels, device_positions, device_masses);
 
 	#ifdef DEBUG
 	cudaError_t calc_accels_error = cudaGetLastError();
@@ -138,12 +138,12 @@ void compute () {
 			cudaGetErrorString(calc_accels_error)
 		);
 		printf("\tcalcAccels Config: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
-			accels_grid_dims.x,
-			accels_grid_dims.y,
-			accels_grid_dims.z,
-			accels_block_dims.x,
-			accels_block_dims.y,
-			accels_block_dims.z
+			calc_accels_grid_dims.x,
+			calc_accels_grid_dims.y,
+			calc_accels_grid_dims.z,
+			calc_accels_block_dims.x,
+			calc_accels_block_dims.y,
+			calc_accels_block_dims.z
 		);
 	}
 	fflush(stdout);
