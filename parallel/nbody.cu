@@ -26,6 +26,10 @@ vector3** accels;
 dim3 calc_changes_grid_dims;
 dim3 calc_changes_block_dims;
 
+int accels_grid_width = calcGridDim(SQUARE_SIZE, NUMENTITIES);
+dim3 accels_grid_dims (accels_grid_width, accels_grid_width, 1);
+dim3 accels_block_dims (SQUARE_SIZE, SQUARE_SIZE, SPATIAL_DIMS);
+
 void initCalcChangesDims () {
 
 	int max_height = MAX_THREADS_PER_BLOCK / SPATIAL_DIMS;
@@ -192,15 +196,15 @@ void printSystemAlt (FILE* handle) {
 
 		fprintf(handle, "pos=(");
 		for (j = 0; j < 3; j++) {
-			fprintf(handle, "%1.7e,", host_positions[i][j]);
+			fprintf(handle, "%1.5e,", host_positions[i][j]);
 		}
 
 		printf("),v=(");
 		for (j = 0; j < 3; j++) {
-			fprintf(handle, "%1.7e,", host_velocities[i][j]);
+			fprintf(handle, "%1.5e,", host_velocities[i][j]);
 		}
 
-		fprintf(handle,"),m=%1.7e\n", host_masses[i]);
+		fprintf(handle,"),m=%1.5e\n", host_masses[i]);
 	}
 }
 
