@@ -97,15 +97,15 @@ void printSystemAlt (FILE* handle) {
 
 		fprintf(handle, "pos=(");
 		for (j = 0; j < 3; j++) {
-			fprintf(handle, "%1.5e,", hPos[i][j]);
+			fprintf(handle, "%1.7e,", hPos[i][j]);
 		}
 
 		printf("),v=(");
 		for (j = 0; j < 3; j++) {
-			fprintf(handle, "%1.5e,", hVel[i][j]);
+			fprintf(handle, "%1.7e,", hVel[i][j]);
 		}
 
-		fprintf(handle,"),m=%1.5e\n", mass[i]);
+		fprintf(handle,"),m=%1.7e\n", mass[i]);
 	}
 }
 
