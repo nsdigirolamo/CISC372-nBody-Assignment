@@ -46,18 +46,51 @@ __global__ void calcAccels (vector3** accels, vector3* positions, double* masses
 	}
 }
 
-__global__ void sumAccels (vector3** accels) {
+__global__ void sumAccels (vector3** accels, int global_sum_length) {
+
+	int local_col = threadIdx.x;
 
 	int global_row = blockIdx.y;
+	int global_col = (blockDim.x * blockIdx.x) + local_col;
 	int spatial_axis = threadIdx.z;
-	
-	double sum = 0;
 
-	for (int i = 0; i < NUMENTITIES; i++) {
-		sum += accels[global_row][i][spatial_axis];
+	if (global_sum_length <= global_col) return;
+
+	__shared__ vector3 sums[SUM_LENGTH];
+
+	int offset = 1;
+	bool neighbor_exceeds_length = SUM_LENGTH <= local_col + offset || global_sum_length <= global_col + offset;
+
+	if (!neighbor_exceeds_length) {
+
+		sums[local_col][spatial_axis] = accels[global_row][global_col][spatial_axis] + accels[global_row][global_col + offset][spatial_axis];
+
+	} else {
+
+		sums[local_col][spatial_axis] = accels[global_row][global_col][spatial_axis];
+
 	}
 
-	accels[global_row][0][spatial_axis] = sum;
+	offset *= 2;
+	bool root_is_working = offset < global_sum_length;
+
+	while (root_is_working) {
+
+		neighbor_exceeds_length = SUM_LENGTH <= local_col + offset;
+		bool thread_is_working = local_col % offset == 0;
+
+		if (thread_is_working && !neighbor_exceeds_length) {
+
+			sums[local_col][spatial_axis] += sums[local_col + offset][spatial_axis];
+
+		}
+
+		offset *= 2;
+		root_is_working = offset < global_sum_length;
+		__syncthreads();
+	}
+
+	if (local_col == 0) accels[global_row][blockIdx.x][spatial_axis] = sums[local_col][spatial_axis];
 }
 
 __global__ void calcChanges (vector3** accels, vector3* velocities, vector3* positions) {
@@ -93,7 +126,7 @@ void compute () {
 	calcAccels<<<accels_grid_dims, accels_block_dims>>>(accels, device_positions, device_masses);
 
 	#ifdef DEBUG
-	cudaError_t calc_accels_error = cudaDeviceSynchronize();
+	cudaError_t calc_accels_error = cudaGetLastError();
 	if (calc_accels_error != cudaSuccess) {
 		printf("calcAccels kernel launch failed! %s: %s\n",
 			cudaGetErrorName(calc_accels_error),
@@ -113,16 +146,19 @@ void compute () {
 
 	// Sum Accelerations
 
-	/**
-	 * TODO: This isn't the best right now. Only assigns three threads per row.
-	 */
-	dim3 sum_grid_dims (1, NUMENTITIES, 1);
-	dim3 sum_block_dims (1, 1, SPATIAL_DIMS);
+	int sum_grid_width = calcGridDim(SUM_LENGTH * 2, NUMENTITIES); // Multiply by two because each thread reduces two data points in accels.
+	dim3 sum_grid_dims (sum_grid_width, NUMENTITIES, 1);
+	dim3 sum_block_dims (SUM_LENGTH, 1, SPATIAL_DIMS);
 
-	sumAccels<<<sum_grid_dims, sum_block_dims>>>(accels);
+	/**
+	 * TODO: Right now, this kernel can only reduce rows that are less than 512.
+	 * Fix it. Make the kernel work when 512 <= NUMENTITIES
+	 */
+
+	sumAccels<<<sum_grid_dims, sum_block_dims>>>(accels, NUMENTITIES);
 
 	#ifdef DEBUG
-	cudaError_t sum_accels_error = cudaDeviceSynchronize();;
+	cudaError_t sum_accels_error = cudaGetLastError();
 	if (sum_accels_error != cudaSuccess) {
 		printf("sumAccels kernel launch failed! %s: %s\n",
 			cudaGetErrorName(sum_accels_error),
@@ -145,7 +181,7 @@ void compute () {
 	calcChanges<<<calc_changes_grid_dims, calc_changes_block_dims>>>(accels, device_velocities, device_positions);
 
 	#ifdef DEBUG
-	cudaError_t calc_changes_error = cudaDeviceSynchronize();;
+	cudaError_t calc_changes_error = cudaGetLastError();
 	if (calc_changes_error != cudaSuccess) {
 		printf("calcChanges kernel launch failed! %s: %s\n",
 			cudaGetErrorName(calc_changes_error),
