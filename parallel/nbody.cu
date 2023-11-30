@@ -192,15 +192,15 @@ void printSystemAlt (FILE* handle) {
 
 		fprintf(handle, "pos=(");
 		for (j = 0; j < 3; j++) {
-			fprintf(handle, "%1.5e,", host_positions[i][j]);
+			fprintf(handle, "%1.7e,", host_positions[i][j]);
 		}
 
 		printf("),v=(");
 		for (j = 0; j < 3; j++) {
-			fprintf(handle, "%1.5e,", host_velocities[i][j]);
+			fprintf(handle, "%1.7e,", host_velocities[i][j]);
 		}
 
-		fprintf(handle,"),m=%1.5e\n", host_masses[i]);
+		fprintf(handle,"),m=%1.7e\n", host_masses[i]);
 	}
 }
 
