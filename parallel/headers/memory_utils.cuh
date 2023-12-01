@@ -3,8 +3,6 @@
 #ifndef __MEMORY_UTILS_CUH__
 #define __MEMORY_UTILS_CUH__
 
-// Functions
-
 void initHostMemory ();
 void initDeviceMemory ();
 void copyHostToDevice ();
