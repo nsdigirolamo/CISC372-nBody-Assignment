@@ -2,24 +2,12 @@
 #include <stdio.h>
 #include <time.h>
 #include <math.h>
+
 #include "vector.cuh"
 #include "config.cuh"
 #include "planets.cuh"
 #include "compute.cuh"
-
-// Host Memory
-
-vector3* host_velocities;
-vector3* host_positions;
-double* host_masses;
-
-// Device Memory
-
-vector3* device_velocities;
-vector3* device_positions;
-double* device_masses;
-
-vector3** accels;
+#include "memory_utils.cuh"
 
 // Kernel Config Arguments
 
@@ -129,99 +117,6 @@ void setSumAccelsDims (int entity_count, dim3* grid_dims, dim3* block_dims) {
 	#endif
 }
 
-void initHostMemory (int numObjects) {
-
-	host_velocities = (vector3*) malloc(sizeof(vector3) * numObjects);
-	host_positions = (vector3*) malloc(sizeof(vector3) * numObjects);
-	host_masses = (double*) malloc(sizeof(double) * numObjects);
-
-}
-
-void initDeviceMemory (int numObjects) {
-
-	// Allocating device memory for velocities, positions, masses, and acceleration sums
-
-	cudaMalloc(&device_velocities, sizeof(vector3) * numObjects);
-	cudaMalloc(&device_positions, sizeof(vector3) * numObjects);
-	cudaMalloc(&device_masses, sizeof(double) * numObjects);
-
-	// Allocating device memory for accelerations
-
-	cudaMalloc(&accels, sizeof(vector3*) * numObjects);
-	vector3* host_accels[numObjects];
-	for (int i = 0; i < numObjects; i++) {
-		cudaMalloc(&host_accels[i], sizeof(vector3) * NUMENTITIES);
-	}
-	cudaMemcpy(accels, host_accels, sizeof(vector3*) * numObjects, cudaMemcpyHostToDevice);
-
-	#ifdef DEBUG
-	cudaError_t e = cudaGetLastError();
-	if (e != cudaSuccess)
-		printf("Error in initDeviceMemory! %s: %s\n",
-			cudaGetErrorName(e),
-			cudaGetErrorString(e)
-		);
-	fflush(stdout);
-	#endif
-}
-
-void copyHostToDevice (int numObjects) {
-
-	cudaMemcpy(device_velocities, host_velocities, sizeof(vector3) * numObjects, cudaMemcpyHostToDevice);
-	cudaMemcpy(device_positions, host_positions, sizeof(vector3) * numObjects, cudaMemcpyHostToDevice);
-	cudaMemcpy(device_masses, host_masses, sizeof(double) * numObjects, cudaMemcpyHostToDevice);
-
-	#ifdef DEBUG
-	cudaError_t e = cudaGetLastError();
-	if (e != cudaSuccess)
-		printf("Error in copyHostToDevice! %s: %s\n",
-			cudaGetErrorName(e),
-			cudaGetErrorString(e)
-		);
-	fflush(stdout);
-	#endif
-}
-
-void copyDeviceToHost (int numObjects) {
-
-	cudaMemcpy(host_velocities, device_velocities, sizeof(vector3) * numObjects, cudaMemcpyDeviceToHost);
-	cudaMemcpy(host_positions, device_positions, sizeof(vector3) * numObjects, cudaMemcpyDeviceToHost);
-
-	#ifdef DEBUG
-	cudaError_t e = cudaGetLastError();
-	if (e != cudaSuccess)
-		printf("Error in copyDeviceToHost! %s: %s\n",
-			cudaGetErrorName(e),
-			cudaGetErrorString(e)
-		);
-	fflush(stdout);
-	#endif
-}
-
-void freeHostMemory () {
-
-	free(host_velocities);
-	free(host_positions);
-	free(host_masses);
-
-}
-
-void freeDeviceMemory () {
-
-	cudaFree(device_velocities);
-	cudaFree(device_positions);
-	cudaFree(device_masses);
-
-	/**
-	 * TODO: I don't think this is freeing accels properly.
-	 * Don't we have to free all the pointers in accels first,
-	 * and then free accels itself?
-	 */
-
-	cudaFree(accels);
-
-}
-
 void planetFill () {
 
 	int i, j;
@@ -297,11 +192,11 @@ int main(int argc, char **argv)
 	srand(1234);
 	initCalcChangesDims();
 	initCalcAccelsDims();
-	initHostMemory(NUMENTITIES);
-	initDeviceMemory(NUMENTITIES);
+	initHostMemory();
+	initDeviceMemory();
 	planetFill();
 	randomFill(NUMPLANETS + 1, NUMASTEROIDS);
-	copyHostToDevice(NUMENTITIES);
+	copyHostToDevice();
 
 	#ifdef DEBUG
 	printSystem(stdout);
@@ -311,7 +206,7 @@ int main(int argc, char **argv)
 		compute();
 	}
 
-	copyDeviceToHost(NUMENTITIES);
+	copyDeviceToHost();
 
 	clock_t t1 = clock() - t0;
 
