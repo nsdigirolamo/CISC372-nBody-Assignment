@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include "vector.h"
-#include "config.h"
+#include "vector.cuh"
+#include "config.cuh"
 
 __global__ void calcAccels (vector3** accels, vector3* positions, double* masses) {
 

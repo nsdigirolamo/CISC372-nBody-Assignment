@@ -1,7 +1,6 @@
-#ifndef __COMPUTE_H__
-#define __COMPUTE_H__
+#ifndef __COMPUTE_CUH__
+#define __COMPUTE_CUH__
 
 void compute ();
-int calcGridDim (int block_width, int entity_count);
 
 #endif

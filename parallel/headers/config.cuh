@@ -1,6 +1,6 @@
 
-#ifndef __CONFIG_H__
-#define __CONFIG_H__
+#ifndef __CONFIG_CUH__
+#define __CONFIG_CUH__
 #define NUMPLANETS      8
 #define MINUTE 			60
 #define HOUR 			MINUTE*60

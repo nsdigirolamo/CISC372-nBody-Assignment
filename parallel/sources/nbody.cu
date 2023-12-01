@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <time.h>
 #include <math.h>
-#include "vector.h"
-#include "config.h"
-#include "planets.h"
-#include "compute.h"
+#include "vector.cuh"
+#include "config.cuh"
+#include "planets.cuh"
+#include "compute.cuh"
 
 // Host Memory
 

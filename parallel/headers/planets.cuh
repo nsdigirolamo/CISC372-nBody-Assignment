@@ -1,5 +1,5 @@
-#ifndef __PLANETS_H__
-#define __PLANETS_H__
+#ifndef __PLANETS_CUH__
+#define __PLANETS_CUH__
 #define SUN {0.0,0.0,0.0,        0.0,0.0,0.0,      1.989e30 }
 #define MERCURY { 57.909e9,0.0,0.0,   0.0,47.36e3,0.0,  0.33011e24 }
 #define VENUS { 108.209e9,0.0,0.0,  0.0,35.02e3,0.0,  4.8675e24 }
