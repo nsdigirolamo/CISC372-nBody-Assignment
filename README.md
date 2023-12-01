@@ -8,7 +8,8 @@ Here are some links that I found helpful in my parallel implementation:
 
 - https://docs.nvidia.com/cuda/cuda-c-programming-guide
 - https://docs.nvidia.com/cuda/floating-point
-- https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf 
+- https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
+- https://developer.nvidia.com/blog/using-shared-memory-cuda-cc/
 
 I tried to keep the serial code as close to the original as possible, but I have made a few minor additions to it: 
 - The printSystemAlt() function on line 92 in nbody.c 
