@@ -89,6 +89,26 @@ void printSystem(FILE* handle){
 	}
 }
 
+void printSystemAlt (FILE* handle) {
+	
+	int i, j;
+
+	for (i = 0; i < NUMENTITIES; i++) {
+
+		fprintf(handle, "pos=(");
+		for (j = 0; j < 3; j++) {
+			fprintf(handle, "%1.5e,", hPos[i][j]);
+		}
+
+		printf("),v=(");
+		for (j = 0; j < 3; j++) {
+			fprintf(handle, "%1.5e,", hVel[i][j]);
+		}
+
+		fprintf(handle,"),m=%1.5e\n", mass[i]);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	clock_t t0=clock();
@@ -106,9 +126,13 @@ int main(int argc, char **argv)
 		compute();
 	}
 	clock_t t1=clock()-t0;
-#ifdef DEBUG
-	printSystem(stdout);
-#endif
+	#ifdef DEBUG
+		#ifdef ALT_PRINT_SYSTEM
+		printSystemAlt(stdout);
+		#else
+		printSystem(stdout);
+		#endif
+	#endif
 	printf("This took a total time of %f seconds\n",(double)t1/CLOCKS_PER_SEC);
 
 	freeHostMemory();

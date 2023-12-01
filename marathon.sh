@@ -1,6 +1,6 @@
 cd parallel;
 echo "Compiling parallel...";
-make;
+make nbody;
 echo "Removing previous output...";
 rm -f marathon.txt;
 echo "Running marathon...";
