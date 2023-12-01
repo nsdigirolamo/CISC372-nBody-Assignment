@@ -14,6 +14,7 @@ Here are some links that I found helpful in my parallel implementation:
 I tried to keep the serial code as close to the original as possible, but I have made a few minor additions to it: 
 - The printSystemAlt() function on line 92 in nbody.c 
 - A call to printSystemAlt() on lines 130 to 134 in nbody.c
+- A new compiler flag to enable or disable printSystemAlt() in the makefile
 - The out directory and its contents
 
 Use the ```make``` command to compile and run either version of the program in its respective directory. I have also included a few scripts that make comparing outputs easier.
