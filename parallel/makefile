@@ -1,16 +1,26 @@
-FLAGS = -DDEBUG -DALT_PRINT_SYSTEM # -DKERNEL_ARGS_DEBUG
+CC = nvcc
+SDIR = sources
+IDIR = headers
+ODIR = objects
+
+OBJS += $(ODIR)/nbody.o
+OBJS += $(ODIR)/compute.o
+
+CFLAGS = -I $(IDIR) -DDEBUG -DALT_PRINT_SYSTEM # -DKERNEL_ARGS_DEBUG
 LIBS = -lm
 ALWAYS_REBUILD = makefile
 
 run: nbody
 	srun ./nbody > out.txt
 
-nbody: nbody.o compute.o
-	nvcc $(FLAGS) $^ -o $@ $(LIBS)
-nbody.o: nbody.cu planets.h config.h vector.h $(ALWAYS_REBUILD)
-	nvcc $(FLAGS) -c $<
-compute.o: compute.cu config.h vector.h $(ALWAYS_REBUILD)
-	nvcc $(FLAGS) -c $<
+nbody: $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+
+$(ODIR)/%.o: $(SDIR)/%.cu | $(ODIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(ODIR):
+	mkdir -p $@
 
 clean:
-	rm -f *.o nbody pnbody out.txt pout.txt
+	rm -f $(OBJS) nbody out.txt
