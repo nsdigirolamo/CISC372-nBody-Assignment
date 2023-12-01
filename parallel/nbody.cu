@@ -29,6 +29,9 @@ dim3 calc_changes_block_dims;
 dim3 calc_accels_grid_dims;
 dim3 calc_accels_block_dims;
 
+dim3 sum_accels_grid_dims;
+dim3 sum_accels_block_dims;
+
 void initCalcAccelsDims () {
 
 	int grid_width = MINIMUM_DIM_SIZE;
@@ -47,7 +50,7 @@ void initCalcAccelsDims () {
 	calc_accels_block_dims.z = SPATIAL_DIMS;
 
 	#ifdef KERNEL_ARGS_DEBUG
-	printf("initCalcAccelsDim(): gridDims: {%d, %d, %d}, blockDims: {%d, %d, %d}\n",
+	printf("initCalcAccelsDims(): gridDims: {%d, %d, %d}, blockDims: {%d, %d, %d}\n",
 		calc_accels_grid_dims.x,
 		calc_accels_grid_dims.y,
 		calc_accels_grid_dims.z,
@@ -81,7 +84,41 @@ void initCalcChangesDims () {
 	calc_changes_block_dims.z = MINIMUM_DIM_SIZE;
 
 	#ifdef KERNEL_ARGS_DEBUG
-	printf("initCalcChangesDim(): gridDims: {%d, %d, %d}, blockDims: {%d, %d, %d}\n",
+	printf("initCalcChangesDims(): gridDims: {%d, %d, %d}, blockDims: {%d, %d, %d}\n",
+		calc_changes_grid_dims.x,
+		calc_changes_grid_dims.y,
+		calc_changes_grid_dims.z,
+		calc_changes_block_dims.x,
+		calc_changes_block_dims.y,
+		calc_changes_block_dims.z
+	);
+	#endif
+}
+
+void setSumAccelsDims (int entity_count, dim3* grid_dims, dim3* block_dims) {
+
+	int grid_width = 1;
+
+	if (MAX_THREADS_PER_BLOCK < entity_count) {
+		grid_width = entity_count / MAX_THREADS_PER_BLOCK;
+		if (entity_count % MAX_THREADS_PER_BLOCK) grid_width += 1;
+	}
+
+	int block_width = entity_count / grid_width;
+	if (entity_count % grid_width) block_width += 1;
+	int warp_offset = block_width % WARP_SIZE;
+	if (warp_offset) block_width += (WARP_SIZE - warp_offset);
+
+	grid_dims->x = grid_width;
+	grid_dims->y = entity_count;
+	grid_dims->z = SPATIAL_DIMS;
+
+	block_dims->x = block_width;
+	block_dims->y = MINIMUM_DIM_SIZE;
+	block_dims->z = MINIMUM_DIM_SIZE;
+
+	#ifdef KERNEL_ARGS_DEBUG
+	printf("initSumAccelsDims(): gridDims: {%d, %d, %d}, blockDims: {%d, %d, %d}\n",
 		calc_changes_grid_dims.x,
 		calc_changes_grid_dims.y,
 		calc_changes_grid_dims.z,
