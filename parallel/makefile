@@ -15,7 +15,7 @@ HDRS += $(IDIR)/memory_utils.cuh
 HDRS += $(IDIR)/planets.cuh
 HDRS += $(IDIR)/vector.cuh
 
-CFLAGS = -I $(IDIR) -DDEBUG # -DALT_PRINT_SYSTEM # -DKERNEL_UTILS_DEBUG
+CFLAGS = -I $(IDIR) -DDEBUG -DALT_PRINT_SYSTEM # -DKERNEL_UTILS_DEBUG
 LIBS = -lm
 ALWAYS_REBUILD = makefile
 
