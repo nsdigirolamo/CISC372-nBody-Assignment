@@ -57,13 +57,10 @@ __global__ void sumAccels (vector3** accels, int global_sum_length) {
 
 	sums[local_col] = accels[global_row][global_col][spatial_axis];
 
-	for (int offset = 1; offset < sums_length; offset *= 2) {
-		// This will produce a strided index from the thread_id
-		int i = 2 * offset * local_col;
-		// This allows for a non-divergent branch within the loop.
-		if (i < sums_length) {
-			sums[i] += sums[i + offset];
-		}
+	__syncthreads();
+
+	for (int stride = sums_length / 2; 0 < stride; stride >>= 1) {
+		if (local_col < stride) sums[local_col] += sums[local_col + stride];
 		__syncthreads();
 	}
 
