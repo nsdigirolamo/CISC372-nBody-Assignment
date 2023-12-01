@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <stdio.h>
+
 #include "config.cuh"
 #include "vector.cuh"
 

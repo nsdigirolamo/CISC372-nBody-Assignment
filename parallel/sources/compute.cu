@@ -2,9 +2,10 @@
 #include <stdio.h>
 #include <math.h>
 
-#include "vector.cuh"
 #include "config.cuh"
-#include "memory_utils.cu"
+#include "kernel_utils.cuh"
+#include "memory_utils.cuh"
+#include "vector.cuh"
 
 __global__ void calcAccels (vector3** accels, vector3* positions, double* masses) {
 
