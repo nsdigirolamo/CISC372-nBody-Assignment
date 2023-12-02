@@ -10,7 +10,7 @@
 #include "planets.cuh"
 #include "vector.cuh"
 
-void handleCudaError (cudaError_t e, char* identifier, bool exits = true) {
+void handleCudaError (cudaError_t e, const char* identifier, bool exits = true) {
 
 	if (e == cudaSuccess) return;
 
