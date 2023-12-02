@@ -30,61 +30,55 @@ void initHostMemory () {
 
 void initDeviceMemory () {\
 
-	cudaError_t e;
-
-	e = cudaMalloc(&device_velocities, sizeof(vector3) * NUMENTITIES);
+	cudaMalloc(&device_velocities, sizeof(vector3) * NUMENTITIES);
 	#ifdef DEBUG
-	handleCudaError(e, "initDeviceMemory velocities");
+	handleCudaError(cudaGetLastError(), "initDeviceMemory velocities");
 	#endif
 
-	e = cudaMalloc(&device_positions, sizeof(vector3) * NUMENTITIES);
+	cudaMalloc(&device_positions, sizeof(vector3) * NUMENTITIES);
 	#ifdef DEBUG
-	handleCudaError(e, "initDeviceMemory positions");
+	handleCudaError(cudaGetLastError(), "initDeviceMemory positions");
 	#endif
 
-	e = cudaMalloc(&device_masses, sizeof(double) * NUMENTITIES);
+	cudaMalloc(&device_masses, sizeof(double) * NUMENTITIES);
 	#ifdef DEBUG
-	handleCudaError(e, "initDeviceMemory masses");
+	handleCudaError(cudaGetLastError(), "initDeviceMemory masses");
 	#endif
 
-	e = cudaMallocPitch(&accels, &accels_pitch, sizeof(vector3) * (NUMENTITIES + 1), (NUMENTITIES + 1));
+	cudaMallocPitch(&accels, &accels_pitch, sizeof(vector3) * NUMENTITIES, NUMENTITIES);
 	#ifdef DEBUG
-	handleCudaError(e, "initDeviceMemory accels");
+	handleCudaError(cudaGetLastError(), "initDeviceMemory accels");
 	#endif
 }
 
 void copyHostToDevice () {
 
-	cudaError_t e;
-
-	e = cudaMemcpy(device_velocities, host_velocities, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
+	cudaMemcpy(device_velocities, host_velocities, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
 	#ifdef DEBUG
-	handleCudaError(e, "copyHostToDevice velocities");
+	handleCudaError(cudaGetLastError(), "copyHostToDevice velocities");
 	#endif
 
-	e = cudaMemcpy(device_positions, host_positions, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
+	cudaMemcpy(device_positions, host_positions, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
 	#ifdef DEBUG
-	handleCudaError(e, "copyHostToDevice positions");
+	handleCudaError(cudaGetLastError(), "copyHostToDevice positions");
 	#endif
 
-	e = cudaMemcpy(device_masses, host_masses, sizeof(double) * NUMENTITIES, cudaMemcpyHostToDevice);
+	cudaMemcpy(device_masses, host_masses, sizeof(double) * NUMENTITIES, cudaMemcpyHostToDevice);
 	#ifdef DEBUG
-	handleCudaError(e, "copyHostToDevice masses");
+	handleCudaError(cudaGetLastError(), "copyHostToDevice masses");
 	#endif
 }
 
 void copyDeviceToHost () {
 
-	cudaError_t e;
-
-	e = cudaMemcpy(host_velocities, device_velocities, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+	cudaMemcpy(host_velocities, device_velocities, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
 	#ifdef DEBUG 
-	handleCudaError(e, "copyDeviceToHost velocities"); 
+	handleCudaError(cudaGetLastError(), "copyDeviceToHost velocities"); 
 	#endif
 
-	e = cudaMemcpy(host_positions, device_positions, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+	cudaMemcpy(host_positions, device_positions, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
 	#ifdef DEBUG
-	handleCudaError(e, "copyDeviceToHost positions");
+	handleCudaError(cudaGetLastError(), "copyDeviceToHost positions");
 	#endif
 }
 
@@ -98,25 +92,23 @@ void freeHostMemory () {
 
 void freeDeviceMemory () {
 
-	cudaError_t e;
-
-	e = cudaFree(device_velocities);
+	cudaFree(device_velocities);
 	#ifdef DEBUG 
-	handleCudaError(e, "freeDeviceMemory velocities"); 
+	handleCudaError(cudaGetLastError(), "freeDeviceMemory velocities"); 
 	#endif
 
-	e = cudaFree(device_positions);
+	cudaFree(device_positions);
 	#ifdef DEBUG 
-	handleCudaError(e, "freeDeviceMemory positions"); 
+	handleCudaError(cudaGetLastError(), "freeDeviceMemory positions"); 
 	#endif
 
-	e = cudaFree(device_masses);
+	cudaFree(device_masses);
 	#ifdef DEBUG 
-	handleCudaError(e, "freeDeviceMemory masses"); 
+	handleCudaError(cudaGetLastError(), "freeDeviceMemory masses"); 
 	#endif
 
-	e = cudaFree(accels);
+	cudaFree(accels);
 	#ifdef DEBUG 
-	handleCudaError(e, "freeDeviceMemory accels"); 
+	handleCudaError(cudaGetLastError(), "freeDeviceMemory accels"); 
 	#endif
 }
