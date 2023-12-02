@@ -29,14 +29,7 @@ void initCalcAccelsDims () {
 	calc_accels_block_dims.z = SPATIAL_DIMS;
 
 	#ifdef KERNEL_UTILS_DEBUG
-	printf("initCalcAccelsDims(): gridDims: {%d, %d, %d}, blockDims: {%d, %d, %d}\n",
-		calc_accels_grid_dims.x,
-		calc_accels_grid_dims.y,
-		calc_accels_grid_dims.z,
-		calc_accels_block_dims.x,
-		calc_accels_block_dims.y,
-		calc_accels_block_dims.z
-	);
+	printKernelDims("initCalcAccelsDims", calc_accels_grid_dims, calc_accels_block_dims);
 	#endif
 }
 
@@ -63,14 +56,7 @@ void initCalcChangesDims () {
 	calc_changes_block_dims.z = MINIMUM_DIM_SIZE;
 
 	#ifdef KERNEL_UTILS_DEBUG
-	printf("initCalcChangesDims(): gridDims: {%d, %d, %d}, blockDims: {%d, %d, %d}\n",
-		calc_changes_grid_dims.x,
-		calc_changes_grid_dims.y,
-		calc_changes_grid_dims.z,
-		calc_changes_block_dims.x,
-		calc_changes_block_dims.y,
-		calc_changes_block_dims.z
-	);
+	printKernelDims("initCalcChangesDims", calc_changes_grid_dims, calc_changes_block_dims);
 	#endif
 }
 
@@ -97,19 +83,13 @@ void setSumAccelsDims (int entity_count, dim3* grid_dims, dim3* block_dims) {
 	block_dims->z = MINIMUM_DIM_SIZE;
 
 	#ifdef KERNEL_UTILS_DEBUG
-	printf("initSumAccelsDims(): gridDims: {%d, %d, %d}, blockDims: {%d, %d, %d}\n",
-		calc_changes_grid_dims.x,
-		calc_changes_grid_dims.y,
-		calc_changes_grid_dims.z,
-		calc_changes_block_dims.x,
-		calc_changes_block_dims.y,
-		calc_changes_block_dims.z
-	);
+	printKernelDims("setSumAccelsDims", grid_dims, block_dims);
 	#endif
 }
 
-void printKernelDims (char* identifier, dim3 grid_dims, dim3 block_dims) {
+void printKernelDims (const char* identifier, dim3 grid_dims, dim3 block_dims) {
 	printf("%s: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
+		identifier,
 		grid_dims.x,
 		grid_dims.y,
 		grid_dims.z,
