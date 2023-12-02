@@ -5,6 +5,7 @@
 #include "config.cuh"
 #include "kernel_utils.cuh"
 #include "memory_utils.cuh"
+#include "nbody.cuh"
 #include "vector.cuh"
 
 __global__ void calcAccels (vector3* accels, size_t accels_pitch, vector3* positions, double* masses) {
@@ -87,12 +88,7 @@ void compute () {
 
 	#ifdef DEBUG
 	cudaError_t e = cudaGetLastError();
-	if (e != cudaSuccess)
-		printf("Error before compute! %s: %s\n",
-			cudaGetErrorName(e),
-			cudaGetErrorString(e)
-		);
-	fflush(stdout);
+	handleCudaError(e, "compute");
 	#endif
 
 	// Calculate Accelerations
@@ -100,22 +96,12 @@ void compute () {
 	calcAccels<<<calc_accels_grid_dims, calc_accels_block_dims>>>(accels, accels_pitch, device_positions, device_masses);
 
 	#ifdef DEBUG
-	cudaError_t calc_accels_error = cudaGetLastError();
-	if (calc_accels_error != cudaSuccess) {
-		printf("calcAccels kernel launch failed! %s: %s\n",
-			cudaGetErrorName(calc_accels_error),
-			cudaGetErrorString(calc_accels_error)
-		);
-		printf("\tcalcAccels Config: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
-			calc_accels_grid_dims.x,
-			calc_accels_grid_dims.y,
-			calc_accels_grid_dims.z,
-			calc_accels_block_dims.x,
-			calc_accels_block_dims.y,
-			calc_accels_block_dims.z
-		);
+	e = cudaGetLastError();
+	if (e != cudaSuccess) {
+		printf("Error in Kernel Detected!\n");
+		printKernelDims("calcAccels", calc_accels_grid_dims, calc_accels_block_dims);
 	}
-	fflush(stdout);
+	handleCudaError(cudaGetLastError(), "calcAccels");
 	#endif
 
 	// Sum Accelerations
@@ -129,22 +115,12 @@ void compute () {
 		sumAccels<<<sum_accels_grid_dims, sum_accels_block_dims, sizeof(double) * (sum_accels_block_dims.x)>>>(accels, accels_pitch, global_sum_length);
 
 		#ifdef DEBUG
-		cudaError_t sum_accels_error = cudaGetLastError();
-		if (sum_accels_error != cudaSuccess) {
-			printf("sumAccels kernel launch failed! %s: %s\n",
-				cudaGetErrorName(sum_accels_error),
-				cudaGetErrorString(sum_accels_error)
-			);
-			printf("\tsumAccels Config: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
-				sum_accels_grid_dims.x,
-				sum_accels_grid_dims.y,
-				sum_accels_grid_dims.z,
-				sum_accels_block_dims.x,
-				sum_accels_block_dims.y,
-				sum_accels_block_dims.z
-			);
+		e = cudaGetLastError();
+		if (e != cudaSuccess) {
+			printf("Error in Kernel Detected!\n");
+			printKernelDims("sumAccels", calc_accels_grid_dims, calc_accels_block_dims);
 		}
-		fflush(stdout);
+		handleCudaError(cudaGetLastError(), "sumAccels");
 		#endif
 
 		global_sum_length = sum_accels_grid_dims.x;
@@ -155,21 +131,11 @@ void compute () {
 	calcChanges<<<calc_changes_grid_dims, calc_changes_block_dims>>>(accels, accels_pitch, device_velocities, device_positions);
 
 	#ifdef DEBUG
-	cudaError_t calc_changes_error = cudaGetLastError();
-	if (calc_changes_error != cudaSuccess) {
-		printf("calcChanges kernel launch failed! %s: %s\n",
-			cudaGetErrorName(calc_changes_error),
-			cudaGetErrorString(calc_changes_error)
-		);
-		printf("\tcalcChanges Config: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
-			calc_changes_grid_dims.x,
-			calc_changes_grid_dims.y,
-			calc_changes_grid_dims.z,
-			calc_changes_block_dims.x,
-			calc_changes_block_dims.y,
-			calc_changes_block_dims.z
-		);
+	e = cudaGetLastError();
+	if (e != cudaSuccess) {
+		printf("Error in Kernel Detected!\n");
+		printKernelDims("calcChanges", calc_accels_grid_dims, calc_accels_block_dims);
 	}
-	fflush(stdout);
+	handleCudaError(cudaGetLastError(), "calcChanges");
 	#endif
 }
