@@ -64,6 +64,12 @@ void setSumAccelsDims (int entity_count, dim3* grid_dims, dim3* block_dims) {
 
 	int grid_width = 1;
 
+	// Divide entity_count by 2 because each thread will handle two entities.
+
+	int round_up = entity_count % 2;
+	entity_count /= 2;
+	if (round_up) entity_count += 1;
+
 	if (MAX_THREADS_PER_BLOCK < entity_count) {
 		grid_width = entity_count / MAX_THREADS_PER_BLOCK;
 		if (entity_count % MAX_THREADS_PER_BLOCK) grid_width += 1;

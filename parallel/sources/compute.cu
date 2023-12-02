@@ -46,7 +46,7 @@ __global__ void sumAccels (vector3* accels, size_t accels_pitch, int global_sum_
 	int local_col = threadIdx.x;
 
 	int global_row = blockIdx.y;
-	int global_col = (blockIdx.x * blockDim.x) + local_col;
+	int global_col = (blockIdx.x * blockDim.x * 2) + (local_col * 2); // Multiply by 2 because each thread initially handles 2 entities 
 	int spatial_axis = blockIdx.z;
 
 	extern __shared__ double sums[];
@@ -58,7 +58,15 @@ __global__ void sumAccels (vector3* accels, size_t accels_pitch, int global_sum_
 
 	vector3* accels_row = (vector3*)((char*)(accels) + global_row * accels_pitch);
 
-	sums[local_col] = accels_row[global_col][spatial_axis];
+	if (global_sum_length <= global_col + blockDim.x) {
+
+		sums[local_col] = accels_row[global_col][spatial_axis];
+
+	} else {
+
+		sums[local_col] = accels_row[global_col][spatial_axis] + accels_row[global_col + blockDim.x][spatial_axis];
+
+	}
 
 	__syncthreads();
 
