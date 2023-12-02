@@ -14,7 +14,7 @@ void handleCudaError (cudaError_t e, char* identifier, bool exits = true) {
 
 	if (e == cudaSuccess) return;
 
-	fprintf(stderr, "%s %s: %s",
+	fprintf(stderr, "%s %s: %s\n",
 		identifier,
 		cudaGetErrorName(e),
 		cudaGetErrorString(e)
