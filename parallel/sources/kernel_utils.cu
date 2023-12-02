@@ -107,3 +107,14 @@ void setSumAccelsDims (int entity_count, dim3* grid_dims, dim3* block_dims) {
 	);
 	#endif
 }
+
+void printKernelDims (char* identifier, dim3 grid_dims, dim3 block_dims) {
+	printf("%s: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
+		grid_dims.x,
+		grid_dims.y,
+		grid_dims.z,
+		block_dims.x,
+		block_dims.y,
+		block_dims.z
+	);
+}
