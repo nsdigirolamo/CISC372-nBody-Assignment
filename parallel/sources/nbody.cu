@@ -10,6 +10,19 @@
 #include "planets.cuh"
 #include "vector.cuh"
 
+void handleCudaError (cudaError_t e, char* identifier, bool exits = true) {
+
+	if (e == cudaSuccess) return;
+
+	printf("%s %s: %s",
+		identifier,
+		cudaGetErrorName(e),
+		cudaGetErrorString(e)
+	);
+
+	exit(1);
+}
+
 void planetFill () {
 
 	int i, j;
