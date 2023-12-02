@@ -4,12 +4,13 @@ Nicholas DiGirolamo
 
 A parallel and serial implementation of a solution to the nbody problem. The serial implentation was provided by Professor Silber. The parallel implementation is a heavily modified version of the serial implentation.
 
-Here are some links that I found helpful in my parallel implementation:
+Here are some resources I found useful over the course of my development of the parallel version:
 
-- https://docs.nvidia.com/cuda/cuda-c-programming-guide
-- https://docs.nvidia.com/cuda/floating-point
-- https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
-- https://developer.nvidia.com/blog/using-shared-memory-cuda-cc/
+- [CUDA C++ Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide)
+- [Floating Point and IEEE 754 Compliance for NVIDIA GPUs](https://docs.nvidia.com/cuda/floating-point)
+- [Optimizing Parallel Reduction in CUDA](https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf)
+- [Using Shared Memory in CUDA C/C++](https://developer.nvidia.com/blog/using-shared-memory-cuda-cc/)
+- [A helpful stackoverflow post regarding cudaMallocPitch and cudaMemcpy2D](https://stackoverflow.com/a/43685290)
 
 I tried to keep the serial code as close to the original as possible, but I have made a few minor additions to it: 
 - The printSystemAlt() function on line 92 in nbody.c 
