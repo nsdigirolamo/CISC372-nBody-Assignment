@@ -22,6 +22,7 @@ extern vector3* device_velocities;
 extern vector3* device_positions;
 extern double* device_masses;
 
-extern vector3** accels;
+extern size_t accels_pitch;
+extern vector3* accels;
 
 #endif

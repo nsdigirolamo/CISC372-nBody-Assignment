@@ -7,7 +7,7 @@
 #include "memory_utils.cuh"
 #include "vector.cuh"
 
-__global__ void calcAccels (vector3** accels, vector3* positions, double* masses) {
+__global__ void calcAccels (vector3* accels, size_t accels_pitch, vector3* positions, double* masses) {
 
 	int local_row = threadIdx.y;
 	int local_col = threadIdx.x;
@@ -18,9 +18,11 @@ __global__ void calcAccels (vector3** accels, vector3* positions, double* masses
 
 	if (NUMENTITIES <= global_col || NUMENTITIES <= global_row) return;
 
+	vector3* accels_row = (vector3*)((char*)(accels) + global_row * accels_pitch);
+
 	if (global_row == global_col) {
 
-		accels[global_row][global_col][spatial_axis] = 0;
+		accels_row[global_col][spatial_axis] = 0;
 
 	} else {
 
@@ -33,17 +35,12 @@ __global__ void calcAccels (vector3** accels, vector3* positions, double* masses
 		double magnitude_sq = distances[local_row][local_col][0] * distances[local_row][local_col][0] + distances[local_row][local_col][1] * distances[local_row][local_col][1] + distances[local_row][local_col][2] * distances[local_row][local_col][2];
 		double magnitude = sqrt(magnitude_sq);
 		double accelmag = -1 * GRAV_CONSTANT * masses[global_col] / magnitude_sq;
-		accels[global_row][global_col][spatial_axis] = accelmag * distances[local_row][local_col][spatial_axis] / magnitude;
+		accels_row[global_col][spatial_axis] = accelmag * distances[local_row][local_col][spatial_axis] / magnitude;
 
 	}
 }
 
-__global__ void sumAccels (vector3** accels, int global_sum_length) {
-
-	/**
-	 * I used this resource to help me optimize my code.
-	 * https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
-	 */
+__global__ void sumAccels (vector3* accels, size_t accels_pitch, int global_sum_length) {
 
 	int local_col = threadIdx.x;
 
@@ -58,7 +55,9 @@ __global__ void sumAccels (vector3** accels, int global_sum_length) {
 
 	if (global_sum_length <= global_col) return;
 
-	sums[local_col] = accels[global_row][global_col][spatial_axis];
+	vector3* accels_row = (vector3*)((char*)(accels) + global_row * accels_pitch);
+
+	sums[local_col] = accels_row[global_col][spatial_axis];
 
 	__syncthreads();
 
@@ -67,10 +66,10 @@ __global__ void sumAccels (vector3** accels, int global_sum_length) {
 		__syncthreads();
 	}
 
-	if (local_col == 0) accels[global_row][blockIdx.x][spatial_axis] = sums[local_col];
+	if (local_col == 0) accels_row[blockIdx.x][spatial_axis] = sums[local_col];
 }
 
-__global__ void calcChanges (vector3** accels, vector3* velocities, vector3* positions) {
+__global__ void calcChanges (vector3* accels, size_t accels_pitch, vector3* velocities, vector3* positions) {
 
 	int local_row = threadIdx.y;
 	int global_row = (blockIdx.y * blockDim.y) + local_row;
@@ -78,7 +77,9 @@ __global__ void calcChanges (vector3** accels, vector3* velocities, vector3* pos
 
 	if (NUMENTITIES <= global_row) return;
 
-	velocities[global_row][spatial_axis] += accels[global_row][0][spatial_axis] * INTERVAL;
+	vector3* accels_row = (vector3*)((char*)(accels) + global_row * accels_pitch);
+
+	velocities[global_row][spatial_axis] += accels_row[0][spatial_axis] * INTERVAL;
 	positions[global_row][spatial_axis] += velocities[global_row][spatial_axis] * INTERVAL; 
 }
 
@@ -96,7 +97,7 @@ void compute () {
 
 	// Calculate Accelerations
 
-	calcAccels<<<calc_accels_grid_dims, calc_accels_block_dims>>>(accels, device_positions, device_masses);
+	calcAccels<<<calc_accels_grid_dims, calc_accels_block_dims>>>(accels, accels_pitch, device_positions, device_masses);
 
 	#ifdef DEBUG
 	cudaError_t calc_accels_error = cudaGetLastError();
@@ -125,7 +126,7 @@ void compute () {
 
 		setSumAccelsDims(global_sum_length, &sum_accels_grid_dims, &sum_accels_block_dims);
 
-		sumAccels<<<sum_accels_grid_dims, sum_accels_block_dims, sizeof(double) * (sum_accels_block_dims.x)>>>(accels, global_sum_length);
+		sumAccels<<<sum_accels_grid_dims, sum_accels_block_dims, sizeof(double) * (sum_accels_block_dims.x)>>>(accels, accels_pitch, global_sum_length);
 
 		#ifdef DEBUG
 		cudaError_t sum_accels_error = cudaGetLastError();
@@ -151,7 +152,7 @@ void compute () {
 
 	// Calculating Changes
 
-	calcChanges<<<calc_changes_grid_dims, calc_changes_block_dims>>>(accels, device_velocities, device_positions);
+	calcChanges<<<calc_changes_grid_dims, calc_changes_block_dims>>>(accels, accels_pitch, device_velocities, device_positions);
 
 	#ifdef DEBUG
 	cudaError_t calc_changes_error = cudaGetLastError();

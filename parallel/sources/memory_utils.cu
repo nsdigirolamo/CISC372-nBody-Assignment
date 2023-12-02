@@ -16,7 +16,8 @@ vector3* device_velocities;
 vector3* device_positions;
 double* device_masses;
 
-vector3** accels;
+size_t accels_pitch;
+vector3* accels;
 
 void initHostMemory () {
 
@@ -28,20 +29,10 @@ void initHostMemory () {
 
 void initDeviceMemory () {
 
-	// Allocating device memory for velocities, positions, masses, and acceleration sums
-
 	cudaMalloc(&device_velocities, sizeof(vector3) * NUMENTITIES);
 	cudaMalloc(&device_positions, sizeof(vector3) * NUMENTITIES);
 	cudaMalloc(&device_masses, sizeof(double) * NUMENTITIES);
-
-	// Allocating device memory for accelerations
-
-	cudaMalloc(&accels, sizeof(vector3*) * NUMENTITIES);
-	vector3* host_accels[NUMENTITIES];
-	for (int i = 0; i < NUMENTITIES; i++) {
-		cudaMalloc(&host_accels[i], sizeof(vector3) * NUMENTITIES);
-	}
-	cudaMemcpy(accels, host_accels, sizeof(vector3*) * NUMENTITIES, cudaMemcpyHostToDevice);
+	cudaMallocPitch(&accels, &accels_pitch, sizeof(vector3) * (NUMENTITIES + 1), (NUMENTITIES + 1));
 
 	#ifdef DEBUG
 	cudaError_t e = cudaGetLastError();
@@ -100,13 +91,6 @@ void freeDeviceMemory () {
 	cudaFree(device_velocities);
 	cudaFree(device_positions);
 	cudaFree(device_masses);
-
-	/**
-	 * TODO: I don't think this is freeing accels properly.
-	 * Don't we have to free all the pointers in accels first,
-	 * and then free accels itself?
-	 */
-
 	cudaFree(accels);
 
 }
