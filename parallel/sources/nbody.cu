@@ -14,13 +14,15 @@ void handleCudaError (cudaError_t e, char* identifier, bool exits = true) {
 
 	if (e == cudaSuccess) return;
 
-	printf("%s %s: %s",
+	fprintf(stderr, "%s %s: %s",
 		identifier,
 		cudaGetErrorName(e),
 		cudaGetErrorString(e)
 	);
 
-	exit(1);
+	fflush(NULL);
+
+	if (exits) exit(1);
 }
 
 void planetFill () {
