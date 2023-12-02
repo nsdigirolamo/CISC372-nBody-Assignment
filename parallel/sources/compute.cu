@@ -34,10 +34,8 @@ __global__ void calcAccels (vector3* accels, size_t accels_pitch, vector3* posit
 		__syncthreads();
 
 		double magnitude_sq = distances[local_row][local_col][0] * distances[local_row][local_col][0] + distances[local_row][local_col][1] * distances[local_row][local_col][1] + distances[local_row][local_col][2] * distances[local_row][local_col][2];
-		double magnitude = sqrt(magnitude_sq);
 		double accelmag = -1 * GRAV_CONSTANT * masses[global_col] / magnitude_sq;
-		accels_row[global_col][spatial_axis] = accelmag * distances[local_row][local_col][spatial_axis] / magnitude;
-
+		accels_row[global_col][spatial_axis] = accelmag * distances[local_row][local_col][spatial_axis] * rsqrt(magnitude_sq);;
 	}
 }
 
@@ -45,18 +43,16 @@ __global__ void sumAccels (vector3* accels, size_t accels_pitch, int global_sum_
 
 	int local_col = threadIdx.x;
 
-	int global_row = blockIdx.y;
 	int global_col = (blockIdx.x * blockDim.x * 2) + (local_col * 2); // Multiply by 2 because each thread initially handles 2 entities 
 	int spatial_axis = blockIdx.z;
 
 	extern __shared__ double sums[];
-	int sums_length = blockDim.x;
 
 	sums[local_col] = 0;
 
 	if (global_sum_length <= global_col) return;
 
-	vector3* accels_row = (vector3*)((char*)(accels) + global_row * accels_pitch);
+	vector3* accels_row = (vector3*)((char*)(accels) + blockIdx.y * accels_pitch);
 
 	if (global_sum_length <= global_col + blockDim.x) {
 
@@ -70,7 +66,7 @@ __global__ void sumAccels (vector3* accels, size_t accels_pitch, int global_sum_
 
 	__syncthreads();
 
-	for (int stride = sums_length / 2; 0 < stride; stride >>= 1) {
+	for (int stride = blockDim.x / 2; 0 < stride; stride >>= 1) {
 		if (local_col < stride) sums[local_col] += sums[local_col + stride];
 		__syncthreads();
 	}
@@ -80,8 +76,7 @@ __global__ void sumAccels (vector3* accels, size_t accels_pitch, int global_sum_
 
 __global__ void calcChanges (vector3* accels, size_t accels_pitch, vector3* velocities, vector3* positions) {
 
-	int local_row = threadIdx.y;
-	int global_row = (blockIdx.y * blockDim.y) + local_row;
+	int global_row = (blockIdx.y * blockDim.y) + threadIdx.y;
 	int spatial_axis = blockIdx.z;
 
 	if (NUMENTITIES <= global_row) return;
