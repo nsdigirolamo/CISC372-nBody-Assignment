@@ -4,7 +4,7 @@
 void initCalcAccelsDims ();
 void initCalcChangesDims ();
 void setSumAccelsDims (int entity_count, dim3* grid_dims, dim3* block_dims);
-void printKernelDims (char* identifier, dim3 grid_dims, dim3 block_dims);
+void printKernelDims (const char* identifier, dim3 grid_dims, dim3 block_dims);
 
 extern dim3 calc_changes_grid_dims;
 extern dim3 calc_changes_block_dims;
