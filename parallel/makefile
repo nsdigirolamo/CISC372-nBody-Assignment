@@ -12,6 +12,7 @@ HDRS += $(IDIR)/compute.cuh
 HDRS += $(IDIR)/config.cuh
 HDRS += $(IDIR)/kernel_utils.cuh
 HDRS += $(IDIR)/memory_utils.cuh
+HDRS += $(IDIR)/nbody.cuh
 HDRS += $(IDIR)/planets.cuh
 HDRS += $(IDIR)/vector.cuh
 
