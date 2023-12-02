@@ -118,7 +118,7 @@ void compute () {
 		e = cudaGetLastError();
 		if (e != cudaSuccess) {
 			printf("Error in Kernel Detected!\n");
-			printKernelDims("sumAccels", calc_accels_grid_dims, calc_accels_block_dims);
+			printKernelDims("sumAccels", sum_accels_grid_dims, sum_accels_block_dims);
 		}
 		handleCudaError(cudaGetLastError(), "sumAccels");
 		#endif
@@ -134,7 +134,7 @@ void compute () {
 	e = cudaGetLastError();
 	if (e != cudaSuccess) {
 		printf("Error in Kernel Detected!\n");
-		printKernelDims("calcChanges", calc_accels_grid_dims, calc_accels_block_dims);
+		printKernelDims("calcChanges", calc_changes_grid_dims, calc_changes_block_dims);
 	}
 	handleCudaError(cudaGetLastError(), "calcChanges");
 	#endif
