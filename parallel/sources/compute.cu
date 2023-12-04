@@ -34,41 +34,45 @@ __global__ void calcAccels (vector3* accels, size_t accels_pitch, vector3* posit
 		__syncthreads();
 
 		double magnitude_sq = distances[local_row][local_col][0] * distances[local_row][local_col][0] + distances[local_row][local_col][1] * distances[local_row][local_col][1] + distances[local_row][local_col][2] * distances[local_row][local_col][2];
+		double magnitude = sqrt(magnitude_sq);
 		double accelmag = -1 * GRAV_CONSTANT * masses[global_col] / magnitude_sq;
-		accels_row[global_col][spatial_axis] = accelmag * distances[local_row][local_col][spatial_axis] * rsqrt(magnitude_sq);;
+		accels_row[global_col][spatial_axis] = accelmag * distances[local_row][local_col][spatial_axis] / magnitude;
 	}
 }
 
-__global__ void sumAccels (vector3* accels, size_t accels_pitch, int global_sum_length) {
+__global__ void sumAccels (vector3* accels, size_t accels_pitch, int entity_count, int sum_length) {
 
 	int local_col = threadIdx.x;
 
-	int global_col = (blockIdx.x * blockDim.x * 2) + (local_col * 2); // Multiply by 2 because each thread initially handles 2 entities 
+	int global_row = blockIdx.y;
+	int global_col = (blockIdx.x * blockDim.x * 2) + (local_col * 2);
 	int spatial_axis = blockIdx.z;
 
 	extern __shared__ double sums[];
 
-	sums[local_col] = 0;
+	if (local_col < sum_length) sums[local_col] = 0;
 
-	if (global_sum_length <= global_col) return;
+	if (entity_count <= global_col || sum_length <= local_col) return;
 
-	vector3* accels_row = (vector3*)((char*)(accels) + blockIdx.y * accels_pitch);
+	vector3* accels_row = (vector3*)((char*)(accels) + global_row * accels_pitch);
 
-	if (global_sum_length <= global_col + blockDim.x) {
+	if (entity_count <= global_col + 1) {
 
 		sums[local_col] = accels_row[global_col][spatial_axis];
 
 	} else {
 
-		sums[local_col] = accels_row[global_col][spatial_axis] + accels_row[global_col + blockDim.x][spatial_axis];
+		sums[local_col] = accels_row[global_col][spatial_axis] + accels_row[global_col + 1][spatial_axis];
 
 	}
 
 	__syncthreads();
 
-	for (int stride = blockDim.x / 2; 0 < stride; stride >>= 1) {
+	for (int stride = sum_length / 2; 0 < stride; stride >>= 1) {
+
 		if (local_col < stride) sums[local_col] += sums[local_col + stride];
 		__syncthreads();
+
 	}
 
 	if (local_col == 0) accels_row[blockIdx.x][spatial_axis] = sums[local_col];
@@ -109,13 +113,16 @@ void compute () {
 
 	// Sum Accelerations
 
-	int global_sum_length = NUMENTITIES;
+	int entity_count = NUMENTITIES;
+	setSumAccelsDims(entity_count);
 
-	while (1 < sum_accels_block_dims.x) {
+	while (1 < entity_count) {
 
-		setSumAccelsDims(global_sum_length, &sum_accels_grid_dims, &sum_accels_block_dims);
+		int halved_entity_count = entity_count / 2;
+		if (entity_count % 2) halved_entity_count += 1;
+		halved_entity_count = pow(2, (int)ceil(log2(halved_entity_count)));
 
-		sumAccels<<<sum_accels_grid_dims, sum_accels_block_dims, sizeof(double) * (sum_accels_block_dims.x)>>>(accels, accels_pitch, global_sum_length);
+		sumAccels<<<sum_accels_grid_dims, sum_accels_block_dims, sizeof(double) * halved_entity_count>>>(accels, accels_pitch, entity_count, halved_entity_count);
 
 		#ifdef DEBUG
 		e = cudaGetLastError();
@@ -126,7 +133,8 @@ void compute () {
 		handleCudaError(cudaGetLastError(), "sumAccels");
 		#endif
 
-		global_sum_length = sum_accels_grid_dims.x;
+		entity_count = sum_accels_grid_dims.x;
+		setSumAccelsDims(entity_count);
 	}
 
 	// Calculating Changes
