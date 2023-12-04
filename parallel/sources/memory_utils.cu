@@ -28,7 +28,7 @@ void initHostMemory () {
 
 }
 
-void initDeviceMemory () {\
+void initDeviceMemory () {
 
 	cudaMalloc(&device_velocities, sizeof(vector3) * NUMENTITIES);
 	#ifdef DEBUG
