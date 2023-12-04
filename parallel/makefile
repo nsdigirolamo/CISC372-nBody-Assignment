@@ -16,7 +16,7 @@ HDRS += $(IDIR)/nbody.cuh
 HDRS += $(IDIR)/planets.cuh
 HDRS += $(IDIR)/vector.cuh
 
-CFLAGS = -I $(IDIR) -DDEBUG -DALT_PRINT_SYSTEM # -DKERNEL_UTILS_DEBUG
+CFLAGS = -I $(IDIR) -DDEBUG
 LIBS = -lm
 ALWAYS_REBUILD = makefile
 
