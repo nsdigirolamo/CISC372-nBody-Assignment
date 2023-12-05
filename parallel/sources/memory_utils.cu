@@ -30,6 +30,10 @@ void initHostMemory () {
 
 void initDeviceMemory () {
 
+	#ifdef DEBUG
+	handleCudaError(cudaGetLastError(), "initDeviceMemory filter");
+	#endif
+
 	cudaMalloc(&device_velocities, sizeof(vector3) * NUMENTITIES);
 	#ifdef DEBUG
 	handleCudaError(cudaGetLastError(), "initDeviceMemory velocities");
@@ -53,6 +57,10 @@ void initDeviceMemory () {
 
 void copyHostToDevice () {
 
+	#ifdef DEBUG
+	handleCudaError(cudaGetLastError(), "copyHostToDevice filter");
+	#endif
+
 	cudaMemcpy(device_velocities, host_velocities, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
 	#ifdef DEBUG
 	handleCudaError(cudaGetLastError(), "copyHostToDevice velocities");
@@ -70,6 +78,10 @@ void copyHostToDevice () {
 }
 
 void copyDeviceToHost () {
+
+	#ifdef DEBUG
+	handleCudaError(cudaGetLastError(), "copyDeviceToHost filter");
+	#endif
 
 	cudaMemcpy(host_velocities, device_velocities, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
 	#ifdef DEBUG 
@@ -91,6 +103,10 @@ void freeHostMemory () {
 }
 
 void freeDeviceMemory () {
+
+	#ifdef DEBUG
+	handleCudaError(cudaGetLastError(), "freeDeviceMemory filter");
+	#endif
 
 	cudaFree(device_velocities);
 	#ifdef DEBUG 
