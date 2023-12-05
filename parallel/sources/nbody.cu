@@ -14,7 +14,7 @@ void handleCudaError (cudaError_t e, const char* identifier, bool exits = true) 
 
 	if (e == cudaSuccess) return;
 
-	fprintf(stderr, "%s %s: %s\n",
+	fprintf(stdout, "%s %s: %s\n",
 		identifier,
 		cudaGetErrorName(e),
 		cudaGetErrorString(e)
@@ -118,22 +118,12 @@ int main(int argc, char **argv)
 
 	clock_t t1 = clock() - t0;
 
-	/**
-	 * 
-	 * 	#ifdef DEBUG
-	 *	printSystem(stdout);
-	 *	#endif
-	 * 
-	 * Below is different from the original file. The original file's
-	 * code is kept above for documentation purposes.
-	 */
-
 	#ifdef DEBUG
-		#ifdef ALT_PRINT_SYSTEM
-		printSystemAlt(stdout);
-		#else
-		printSystem(stdout);
-		#endif
+	#ifdef ALT_PRINT_SYSTEM
+	printSystemAlt(stdout);
+	#else
+	printSystem(stdout);
+	#endif
 	#endif
 
 	printf("This took a total time of %f seconds\n", (double)(t1) / CLOCKS_PER_SEC);
