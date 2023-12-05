@@ -13,6 +13,10 @@ Here are some resources I found useful over the course of my development of the 
 - [Using Shared Memory in CUDA C/C++](https://developer.nvidia.com/blog/using-shared-memory-cuda-cc)
 - [A helpful stackoverflow post regarding cudaMallocPitch and cudaMemcpy2D](https://stackoverflow.com/a/43685290)
 
+And here are some other misc links that I know I'm going to forget about if I don't include here:
+
+- [Integer Division Rounding Up](https://stackoverflow.com/a/2422722)
+
 I tried to keep the serial code as close to the original as possible, but I have made a few minor additions to it: 
 - The printSystemAlt() function on line 92 in nbody.c 
 - A call to printSystemAlt() on lines 130 to 134 in nbody.c

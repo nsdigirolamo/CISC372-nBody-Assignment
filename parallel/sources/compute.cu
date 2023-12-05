@@ -50,9 +50,11 @@ __global__ void sumAccels (vector3* accels, size_t accels_pitch, int entity_coun
 
 	extern __shared__ double sums[];
 
-	if (local_col < sum_length) sums[local_col] = 0;
+	if (sum_length <= local_col) return;
 
-	if (entity_count <= global_col || sum_length <= local_col) return;
+	sums[local_col] = 0;
+
+	if (entity_count <= global_col) return; 
 
 	vector3* accels_row = (vector3*)((char*)(accels) + global_row * accels_pitch);
 
@@ -68,13 +70,11 @@ __global__ void sumAccels (vector3* accels, size_t accels_pitch, int entity_coun
 
 	__syncthreads();
 
-	for (int offset = 1; offset < sum_length; offset *= 2) {
+	for (int offset = sum_length / 2; 0 < offset; offset >>= 1) {
 
-		if (local_col % (offset * 2) == 0 && local_col + offset < sum_length) {
-			sums[local_col] += sums[local_col + offset];
-		}
-
+		if (local_col < offset) sums[local_col] += sums[local_col + offset];
 		__syncthreads();
+
 	}
 
 	if (local_col == 0) accels_row[blockIdx.x][spatial_axis] = sums[local_col];
