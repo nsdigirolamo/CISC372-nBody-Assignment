@@ -74,16 +74,10 @@ void initCalcChangesDims () {
 
 void setSumAccelsDims (int entity_count) {
 
-	int grid_width = 1;
-
-	// Divide entity_count by 2 because each thread will handle two entities.
-	// Then, we add one if halved_entity_count is uneven to make sure we have
-	// enough threads. Then, we make sure halved_entity_count is a power of
-	// 2 to make sure our reduction algorithm works properly.
+	int grid_width = MINIMUM_DIM_SIZE;
 
 	int halved_entity_count = entity_count / 2;
 	if (entity_count % 2) halved_entity_count += 1;
-	halved_entity_count = pow(2, (int)ceil(log2(halved_entity_count)));
 
 	if (MAX_THREADS_PER_BLOCK < halved_entity_count) {
 		grid_width = halved_entity_count / MAX_THREADS_PER_BLOCK;
