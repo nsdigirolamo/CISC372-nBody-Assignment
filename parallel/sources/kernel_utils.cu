@@ -26,10 +26,8 @@ void printKernelDims (const char* identifier, dim3 grid_dims, dim3 block_dims) {
 void initCalcAccelsDims () {
 
 	int grid_width = MINIMUM_DIM_SIZE;
-
 	if (CALC_ACCELS_BLOCK_WIDTH < NUMENTITIES) {
-		grid_width = NUMENTITIES / CALC_ACCELS_BLOCK_WIDTH;
-		if (NUMENTITIES % CALC_ACCELS_BLOCK_WIDTH) grid_width += 1;
+		grid_width = (NUMENTITIES + (CALC_ACCELS_BLOCK_WIDTH - 1)) / CALC_ACCELS_BLOCK_WIDTH;
 	}
 
 	calc_accels_grid_dims.x = grid_width;
@@ -48,14 +46,11 @@ void initCalcAccelsDims () {
 void initCalcChangesDims () {
 
 	int grid_height = MINIMUM_DIM_SIZE;
-
 	if (MAX_THREADS_PER_BLOCK < NUMENTITIES) {
-		grid_height = NUMENTITIES / MAX_THREADS_PER_BLOCK;
-		if (NUMENTITIES % MAX_THREADS_PER_BLOCK) grid_height += 1;
+		grid_height = (NUMENTITIES + (MAX_THREADS_PER_BLOCK - 1)) / MAX_THREADS_PER_BLOCK;
 	}
 
-	int block_height = NUMENTITIES / grid_height;
-	if (NUMENTITIES % grid_height) block_height += 1;
+	int block_height = (NUMENTITIES + (grid_height - 1)) / grid_height;
 	int warp_offset = block_height % WARP_SIZE;
 	if (warp_offset) block_height += (WARP_SIZE - warp_offset);
 
@@ -84,7 +79,6 @@ void setSumAccelsDims (int entity_count) {
 	}
 
 	int block_width = (halved_entity_count + (grid_width - 1)) / grid_width;
-
 	for (int i = 0; i < 6; i++) {
 		if (block_width < pows_of_two[i]) {
 			block_width = pows_of_two[i];
