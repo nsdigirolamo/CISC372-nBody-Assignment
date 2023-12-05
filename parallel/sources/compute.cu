@@ -68,11 +68,13 @@ __global__ void sumAccels (vector3* accels, size_t accels_pitch, int entity_coun
 
 	__syncthreads();
 
-	for (int stride = sum_length / 2; 0 < stride; stride >>= 1) {
+	for (int offset = 1; offset < sum_length; offset *= 2) {
 
-		if (local_col < stride) sums[local_col] += sums[local_col + stride];
+		if (local_col % (offset * 2) == 0 && local_col + offset < sum_length) {
+			sums[local_col] += sums[local_col + offset];
+		}
+
 		__syncthreads();
-
 	}
 
 	if (local_col == 0) accels_row[blockIdx.x][spatial_axis] = sums[local_col];
@@ -95,7 +97,7 @@ void compute () {
 
 	#ifdef DEBUG
 	cudaError_t e = cudaGetLastError();
-	handleCudaError(e, "compute");
+	handleCudaError(e, "compute filter");
 	#endif
 
 	// Calculate Accelerations
@@ -103,12 +105,12 @@ void compute () {
 	calcAccels<<<calc_accels_grid_dims, calc_accels_block_dims>>>(accels, accels_pitch, device_positions, device_masses);
 
 	#ifdef DEBUG
-	e = cudaGetLastError();
+	e = cudaDeviceSynchronize();
 	if (e != cudaSuccess) {
 		printf("Error in Kernel Detected!\n");
 		printKernelDims("calcAccels", calc_accels_grid_dims, calc_accels_block_dims);
 	}
-	handleCudaError(cudaGetLastError(), "calcAccels");
+	handleCudaError(e, "calcAccels");
 	#endif
 
 	// Sum Accelerations
@@ -118,19 +120,15 @@ void compute () {
 
 	while (1 < entity_count) {
 
-		int halved_entity_count = entity_count / 2;
-		if (entity_count % 2) halved_entity_count += 1;
-		halved_entity_count = pow(2, (int)ceil(log2(halved_entity_count)));
-
-		sumAccels<<<sum_accels_grid_dims, sum_accels_block_dims, sizeof(double) * halved_entity_count>>>(accels, accels_pitch, entity_count, halved_entity_count);
+		sumAccels<<<sum_accels_grid_dims, sum_accels_block_dims, sizeof(double) * sum_accels_block_dims.x>>>(accels, accels_pitch, entity_count, sum_accels_block_dims.x);
 
 		#ifdef DEBUG
-		e = cudaGetLastError();
+		e = cudaDeviceSynchronize();
 		if (e != cudaSuccess) {
 			printf("Error in Kernel Detected!\n");
 			printKernelDims("sumAccels", sum_accels_grid_dims, sum_accels_block_dims);
 		}
-		handleCudaError(cudaGetLastError(), "sumAccels");
+		handleCudaError(e, "sumAccels");
 		#endif
 
 		entity_count = sum_accels_grid_dims.x;
@@ -142,11 +140,11 @@ void compute () {
 	calcChanges<<<calc_changes_grid_dims, calc_changes_block_dims>>>(accels, accels_pitch, device_velocities, device_positions);
 
 	#ifdef DEBUG
-	e = cudaGetLastError();
+	e = cudaDeviceSynchronize();
 	if (e != cudaSuccess) {
 		printf("Error in Kernel Detected!\n");
 		printKernelDims("calcChanges", calc_changes_grid_dims, calc_changes_block_dims);
 	}
-	handleCudaError(cudaGetLastError(), "calcChanges");
+	handleCudaError(e, "calcChanges");
 	#endif
 }
