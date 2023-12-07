@@ -8,6 +8,17 @@
 #include "nbody.cuh"
 #include "vector.cuh"
 
+/**
+ * Calculates the acceleration values for each entity in the system.
+ * 
+ * Each thread is given a single vector within the accels array, and then
+ * calculates the acceleration for a single component of that vector.
+ * 
+ * @param accels A device pointer to the accels array. Allocated using cudaMallocPitch.
+ * @param accels_pitch The pitch of accels. Given when allocating using cudaMallocPitch.
+ * @param positions A device pointer to the positions array.
+ * @param masses A device pointer to the masses array.
+ */
 __global__ void calcAccels (vector3* accels, size_t accels_pitch, vector3* positions, double* masses) {
 
 	int local_row = threadIdx.y;
@@ -40,6 +51,22 @@ __global__ void calcAccels (vector3* accels, size_t accels_pitch, vector3* posit
 	}
 }
 
+/**
+ * Sums the acceleration values for each entity in the system via parallel
+ * reduction.
+ * 
+ * Each thread initially takes sums two values from the global accels array, and
+ * then stores that sum in the thread's spot in the shared sums array. The
+ * threads iterate until the reduction offset reaches zero. Once the reduction
+ * step is complete, the 0th thread of the ith block will place its block's sum
+ * into accels[i]. The below slide deck was very helpful:
+ * https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
+ * 
+ * @param accels A device pointer to the accels array. Allocated with cudaMallocPitch.
+ * @param accels_pitch The pitch of accels. Given when allocating with cudaMallocPitch.
+ * @param entity_count The maximum number of entities to sum from a row of accels.
+ * @param sum_length The length of the kernel's shared sums array. Must be a power of 2.
+ */
 __global__ void sumAccels (vector3* accels, size_t accels_pitch, int entity_count, int sum_length) {
 
 	int local_col = threadIdx.x;
@@ -52,11 +79,16 @@ __global__ void sumAccels (vector3* accels, size_t accels_pitch, int entity_coun
 
 	if (sum_length <= local_col) return;
 
+	// If we don't set all values to 0 some threads may try to do math on
+	// uninitialized memory.
+
 	sums[local_col] = 0;
 
 	if (entity_count <= global_col) return; 
 
 	vector3* accels_row = (vector3*)((char*)(accels) + global_row * accels_pitch);
+
+	// Each thread takes two values from the global array and sums them first.
 
 	if (entity_count <= global_col + 1) {
 
@@ -70,6 +102,12 @@ __global__ void sumAccels (vector3* accels, size_t accels_pitch, int entity_coun
 
 	__syncthreads();
 
+	// This is where the reduction happens. During this step, it's important
+	// that sum_length is a power of two. The offset will start as half the
+	// sum_length, and then will decrease by half at each iteration. If
+	// sum_length does not start as a power of two, the reduction will sometimes
+	// skip over an index that has a value that needs to be summed.
+
 	for (int offset = sum_length / 2; 0 < offset; offset >>= 1) {
 
 		if (local_col < offset) sums[local_col] += sums[local_col + offset];
@@ -80,6 +118,18 @@ __global__ void sumAccels (vector3* accels, size_t accels_pitch, int entity_coun
 	if (local_col == 0) accels_row[blockIdx.x][spatial_axis] = sums[local_col];
 }
 
+/**
+ * Calculates the changes to velocities and positions for each entity in the
+ * system.
+ * 
+ * Each thread is given a single entity, and then calculates the change in
+ * velocity and position for a single component of that entity.
+ * 
+ * @param accels A device pointer to the accels array. Allocated with cudaMallocPitch.
+ * @param accels_pitch The pitch of accels. Given when allocating with cudaMallocPitch.
+ * @param velocities A device pointer to the velocities array.
+ * @param positions A device pointer to the positions array.
+ */
 __global__ void calcChanges (vector3* accels, size_t accels_pitch, vector3* velocities, vector3* positions) {
 
 	int global_row = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -93,6 +143,9 @@ __global__ void calcChanges (vector3* accels, size_t accels_pitch, vector3* velo
 	positions[global_row][spatial_axis] += velocities[global_row][spatial_axis] * INTERVAL; 
 }
 
+/**
+ * Computes the changes to velocity and position for each entity in the system.
+ */
 void compute () {
 
 	#ifdef DEBUG

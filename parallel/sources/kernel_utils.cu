@@ -11,6 +11,13 @@ dim3 calc_accels_block_dims;
 dim3 sum_accels_grid_dims;
 dim3 sum_accels_block_dims;
 
+/**
+ * Prints kernel dimensions to standard out.
+ * 
+ * @param identifier A short name to prefix the message.
+ * @param grid_dims The grid dimensions to print.
+ * @param block_dims The block dimensions to print.
+ */
 void printKernelDims (const char* identifier, dim3 grid_dims, dim3 block_dims) {
 	printf("%s: gridDims: {%d %d %d}, blockDims: {%d %d %d}\n",
 		identifier,
@@ -23,6 +30,9 @@ void printKernelDims (const char* identifier, dim3 grid_dims, dim3 block_dims) {
 	);
 }
 
+/**
+ * Initializes the dimensions for the calcAccels kernel.
+ */
 void initCalcAccelsDims () {
 
 	int grid_width = MINIMUM_DIM_SIZE;
@@ -43,6 +53,9 @@ void initCalcAccelsDims () {
 	#endif
 }
 
+/**
+ * Initializes the dimensions for the calcChanges kernel.
+ */
 void initCalcChangesDims () {
 
 	int grid_height = MINIMUM_DIM_SIZE;
@@ -67,9 +80,15 @@ void initCalcChangesDims () {
 	#endif
 }
 
+/**
+ * Sets the dimensions for the sumAccels kernel.
+ */
 void setSumAccelsDims (int entity_count) {
 
 	int pows_of_two[6] = {32, 64, 128, 256, 512, 1024};
+
+	// We can halve the entity count here because we need half as many threads
+	// as we have entities. Each thread will initially sum two entities.
 
 	int halved_entity_count = (entity_count + 1) / 2;
 
@@ -77,6 +96,10 @@ void setSumAccelsDims (int entity_count) {
 	if (MAX_THREADS_PER_BLOCK < halved_entity_count) {
 		grid_width = (halved_entity_count + (MAX_THREADS_PER_BLOCK - 1)) / MAX_THREADS_PER_BLOCK;
 	}
+
+	// We calculate the block width we need, then find the next highest power of
+	// two from the block width. We need the block width to be a power of two
+	// because otherwise the reduction algorithm won't work properly.
 
 	int block_width = (halved_entity_count + (grid_width - 1)) / grid_width;
 	for (int i = 0; i < 6; i++) {

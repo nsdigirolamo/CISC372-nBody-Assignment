@@ -20,6 +20,9 @@ double* device_masses;
 size_t accels_pitch;
 vector3* accels;
 
+/**
+ * Initializes memory on the host.
+ */
 void initHostMemory () {
 
 	host_velocities = (vector3*) malloc(sizeof(vector3) * NUMENTITIES);
@@ -28,6 +31,9 @@ void initHostMemory () {
 
 }
 
+/**
+ * Initializes memory on the device.
+ */
 void initDeviceMemory () {
 
 	#ifdef DEBUG
@@ -55,6 +61,9 @@ void initDeviceMemory () {
 	#endif
 }
 
+/**
+ * Copies memory from the host to the device.
+ */
 void copyHostToDevice () {
 
 	#ifdef DEBUG
@@ -77,6 +86,9 @@ void copyHostToDevice () {
 	#endif
 }
 
+/**
+ * Copies memory from the device to the host.
+ */
 void copyDeviceToHost () {
 
 	#ifdef DEBUG
@@ -94,6 +106,9 @@ void copyDeviceToHost () {
 	#endif
 }
 
+/**
+ * Frees the host memory.
+ */
 void freeHostMemory () {
 
 	free(host_velocities);
@@ -102,6 +117,9 @@ void freeHostMemory () {
 
 }
 
+/**
+ * Frees the device memory.
+ */
 void freeDeviceMemory () {
 
 	#ifdef DEBUG

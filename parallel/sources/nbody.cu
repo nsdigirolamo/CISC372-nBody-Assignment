@@ -10,6 +10,13 @@
 #include "planets.cuh"
 #include "vector.cuh"
 
+/**
+ * Prints the CUDA error if it exists, then exits if required.
+ * 
+ * @param e The possible CUDA error to be printed.
+ * @param identifier A short name to prefix the message.
+ * @param exits Whether or not the function should exit the program if it encounters an error.
+ */
 void handleCudaError (cudaError_t e, const char* identifier, bool exits = true) {
 
 	if (e == cudaSuccess) return;
@@ -25,6 +32,11 @@ void handleCudaError (cudaError_t e, const char* identifier, bool exits = true) 
 	if (exits) exit(1);
 }
 
+// planetFill: Fill the first NUMPLANETS+1 entries of the entity arrays with an estimation
+//				of our solar system (Sun+NUMPLANETS)
+// Parameters: None
+// Returns: None
+// Fills the first 8 entries of our system with an estimation of the sun plus our 8 planets.
 void planetFill () {
 
 	int i, j;
@@ -39,6 +51,11 @@ void planetFill () {
 	}
 }
 
+// randomFill: FIll the rest of the objects in the system randomly starting at some entry in the list
+// Parameters: 	start: The index of the first open entry in our system (after planetFill).
+//				count: The number of random objects to put into our system
+// Returns: None
+// Side Effects: Fills count entries in our system starting at index start (0 based)
 void randomFill (int start, int count) {
 
 	int i, j = start;
@@ -52,6 +69,10 @@ void randomFill (int start, int count) {
 	}
 }
 
+// printSystem: Prints out the entire system to the supplied file
+// Parameters: 	handle: A handle to an open file with write access to prnt the data to
+// Returns: 		none
+// Side Effects: Modifies the file handle by writing to it.
 void printSystem (FILE* handle){
 
 	int i, j;
@@ -72,6 +93,9 @@ void printSystem (FILE* handle){
 	}
 }
 
+/**
+ * Prints the entire system in scientific notation to the supplied file.
+ */
 void printSystemAlt (FILE* handle) {
 	
 	int i, j;
@@ -92,8 +116,8 @@ void printSystemAlt (FILE* handle) {
 	}
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
+
 	clock_t t0 = clock();
 	int t_now;
 
